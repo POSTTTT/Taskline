@@ -56,7 +56,7 @@ You should see green checks for **Flutter**, **Windows Version**, and **Visual S
 ### Run the app
 
 ```powershell
-git clone https://github.com/<your-username>/Taskline.git
+git clone https://github.com/POSTTTT/Taskline.git
 cd Taskline/taskline
 flutter pub get
 flutter run -d windows
