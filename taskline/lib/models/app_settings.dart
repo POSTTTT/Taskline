@@ -124,6 +124,7 @@ extension DateFormatPrefX on DateFormatPref {
 class AppSettings {
   final TimeFormatPref timeFormat;
   final DateFormatPref dateFormat;
+  final bool launchAtStartup;
   final ReminderInterval moreThan1Year;
   final ReminderInterval dueIn1Year;
   final ReminderInterval dueIn1Month;
@@ -134,6 +135,7 @@ class AppSettings {
   const AppSettings({
     this.timeFormat = TimeFormatPref.hour24,
     this.dateFormat = DateFormatPref.dmy,
+    this.launchAtStartup = false,
     this.moreThan1Year =
         const ReminderInterval(count: 1, unit: ReminderUnit.year),
     this.dueIn1Year =
@@ -153,6 +155,7 @@ class AppSettings {
   AppSettings copyWith({
     TimeFormatPref? timeFormat,
     DateFormatPref? dateFormat,
+    bool? launchAtStartup,
     ReminderInterval? moreThan1Year,
     ReminderInterval? dueIn1Year,
     ReminderInterval? dueIn1Month,
@@ -163,6 +166,7 @@ class AppSettings {
     return AppSettings(
       timeFormat: timeFormat ?? this.timeFormat,
       dateFormat: dateFormat ?? this.dateFormat,
+      launchAtStartup: launchAtStartup ?? this.launchAtStartup,
       moreThan1Year: moreThan1Year ?? this.moreThan1Year,
       dueIn1Year: dueIn1Year ?? this.dueIn1Year,
       dueIn1Month: dueIn1Month ?? this.dueIn1Month,
@@ -175,6 +179,7 @@ class AppSettings {
   Map<String, Object?> toJson() => {
         'timeFormat': timeFormat.name,
         'dateFormat': dateFormat.name,
+        'launchAtStartup': launchAtStartup,
         'moreThan1Year': moreThan1Year.toJson(),
         'dueIn1Year': dueIn1Year.toJson(),
         'dueIn1Month': dueIn1Month.toJson(),
@@ -206,6 +211,9 @@ class AppSettings {
           TimeFormatPref.values, json['timeFormat'], defaults.timeFormat),
       dateFormat: _enumFrom(
           DateFormatPref.values, json['dateFormat'], defaults.dateFormat),
+      launchAtStartup: json['launchAtStartup'] is bool
+          ? json['launchAtStartup'] as bool
+          : defaults.launchAtStartup,
       moreThan1Year:
           _intervalFrom(json['moreThan1Year'], defaults.moreThan1Year),
       dueIn1Year: _intervalFrom(json['dueIn1Year'], defaults.dueIn1Year),
