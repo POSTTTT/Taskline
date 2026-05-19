@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -28,16 +29,14 @@ class TaskTile extends ConsumerWidget {
 
     return Material(
       color: AppColors.surface,
-      borderRadius: BorderRadius.circular(AppRadii.card),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadii.card),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
           child: Row(
             children: [
-              _Checkbox(value: task.isDone, onChanged: onToggleDone),
-              const SizedBox(width: 16),
+              _RadioCheck(value: task.isDone, onChanged: onToggleDone),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -45,10 +44,10 @@ class TaskTile extends ConsumerWidget {
                   children: [
                     Text(
                       task.title,
-                      style: const TextStyle(
-                        color: AppColors.onSurface,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
+                      style: AppTextStyles.body.copyWith(
+                        color: task.isDone
+                            ? AppColors.onSurfaceMuted
+                            : AppColors.onSurface,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -56,25 +55,14 @@ class TaskTile extends ConsumerWidget {
                     const SizedBox(height: 2),
                     Row(
                       children: [
-                        Text(
-                          'Due: $formatted',
-                          style: const TextStyle(
-                            color: AppColors.onSurfaceMuted,
-                            fontSize: 12,
-                          ),
-                        ),
+                        Text(formatted, style: AppTextStyles.footnote),
                         if (task.recurrence != Recurrence.none) ...[
                           const SizedBox(width: 8),
-                          const Icon(Icons.repeat,
+                          const Icon(CupertinoIcons.repeat,
                               size: 12, color: AppColors.onSurfaceMuted),
                           const SizedBox(width: 2),
-                          Text(
-                            task.recurrence.name,
-                            style: const TextStyle(
-                              color: AppColors.onSurfaceMuted,
-                              fontSize: 12,
-                            ),
-                          ),
+                          Text(task.recurrence.name,
+                              style: AppTextStyles.footnote),
                         ],
                       ],
                     ),
@@ -82,7 +70,8 @@ class TaskTile extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              const _TrailingIndicator(),
+              const Icon(CupertinoIcons.chevron_right,
+                  size: 16, color: AppColors.onSurfaceFaint),
             ],
           ),
         ),
@@ -91,8 +80,8 @@ class TaskTile extends ConsumerWidget {
   }
 }
 
-class _Checkbox extends StatelessWidget {
-  const _Checkbox({required this.value, this.onChanged});
+class _RadioCheck extends StatelessWidget {
+  const _RadioCheck({required this.value, this.onChanged});
 
   final bool value;
   final ValueChanged<bool?>? onChanged;
@@ -102,43 +91,21 @@ class _Checkbox extends StatelessWidget {
     return GestureDetector(
       onTap: onChanged == null ? null : () => onChanged!(!value),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 120),
-        width: 26,
-        height: 26,
+        duration: const Duration(milliseconds: 140),
+        width: 24,
+        height: 24,
         decoration: BoxDecoration(
-          color: value ? AppColors.onSurface : AppColors.primaryMuted,
-          borderRadius: BorderRadius.circular(6),
+          color: value ? AppColors.primary : Colors.transparent,
+          shape: BoxShape.circle,
           border: Border.all(
-            color: value
-                ? AppColors.onSurface
-                : AppColors.onSurfaceMuted.withValues(alpha: 0.5),
+            color: value ? AppColors.primary : AppColors.onSurfaceFaint,
+            width: 1.5,
           ),
         ),
         child: value
-            ? const Icon(Icons.check, size: 18, color: AppColors.background)
+            ? const Icon(CupertinoIcons.check_mark,
+                size: 16, color: Colors.white)
             : null,
-      ),
-    );
-  }
-}
-
-class _TrailingIndicator extends StatelessWidget {
-  const _TrailingIndicator();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 28,
-      height: 28,
-      decoration: const BoxDecoration(
-        color: AppColors.background,
-        shape: BoxShape.circle,
-      ),
-      alignment: Alignment.center,
-      child: const Icon(
-        Icons.play_arrow_rounded,
-        size: 18,
-        color: AppColors.onSurface,
       ),
     );
   }

@@ -1,37 +1,84 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
+/// iOS-style light palette modeled after Apple Reminders / Things 3.
 class AppColors {
   AppColors._();
 
-  static const Color background = Color(0xFF0A1A33);
-  static const Color surface = Color(0xFF15264A);
-  static const Color surfaceVariant = Color(0xFF1E3460);
-  static const Color primary = Color(0xFF3D62A5);
-  static const Color primaryMuted = Color(0xFF24365C);
-  static const Color onSurface = Color(0xFFFFFFFF);
-  static const Color onSurfaceMuted = Color(0xFFB0B8C8);
-  static const Color divider = Color(0x33FFFFFF);
-  static const Color circularButton = Color(0xFFD6DCE5);
-  static const Color circularButtonIcon = Color(0xFF1B2A4A);
+  static const Color background = Color(0xFFF2F2F7); // systemGroupedBackground
+  static const Color surface = Color(0xFFFFFFFF); // grouped section bg
+  static const Color surfaceVariant = Color(0xFFE5E5EA); // tertiary system fill
+
+  static const Color primary = Color(0xFF007AFF); // systemBlue
+  static const Color destructive = Color(0xFFFF3B30); // systemRed
+  static const Color success = Color(0xFF34C759); // systemGreen
+  static const Color warning = Color(0xFFFF9500); // systemOrange
+
+  static const Color onSurface = Color(0xFF000000); // label
+  static const Color onSurfaceMuted = Color(0x993C3C43); // secondaryLabel ~60%
+  static const Color onSurfaceFaint = Color(0x4D3C3C43); // tertiaryLabel ~30%
+
+  static const Color divider = Color(0x5C3C3C43); // separator ~36%
+  static const Color groupedHeader = Color(0xFF6C6C70); // header text
 }
 
 class AppRadii {
   AppRadii._();
 
-  static const double pill = 32;
-  static const double card = 14;
-  static const double inputField = 28;
+  static const double card = 10; // iOS grouped section radius
+  static const double pill = 22;
+  static const double inputField = 10;
+}
+
+class AppTextStyles {
+  AppTextStyles._();
+
+  static const TextStyle largeTitle = TextStyle(
+    color: AppColors.onSurface,
+    fontSize: 34,
+    fontWeight: FontWeight.w700,
+    letterSpacing: 0.4,
+  );
+
+  static const TextStyle title = TextStyle(
+    color: AppColors.onSurface,
+    fontSize: 22,
+    fontWeight: FontWeight.w600,
+  );
+
+  static const TextStyle body = TextStyle(
+    color: AppColors.onSurface,
+    fontSize: 17,
+  );
+
+  static const TextStyle subhead = TextStyle(
+    color: AppColors.onSurface,
+    fontSize: 15,
+  );
+
+  static const TextStyle footnote = TextStyle(
+    color: AppColors.onSurfaceMuted,
+    fontSize: 13,
+  );
+
+  static const TextStyle sectionHeader = TextStyle(
+    color: AppColors.groupedHeader,
+    fontSize: 13,
+    fontWeight: FontWeight.w500,
+    letterSpacing: 0.4,
+  );
 }
 
 ThemeData buildAppTheme() {
   const scheme = ColorScheme(
-    brightness: Brightness.dark,
+    brightness: Brightness.light,
     primary: AppColors.primary,
-    onPrimary: AppColors.onSurface,
+    onPrimary: Colors.white,
     secondary: AppColors.primary,
-    onSecondary: AppColors.onSurface,
-    error: Color(0xFFE57373),
-    onError: AppColors.onSurface,
+    onSecondary: Colors.white,
+    error: AppColors.destructive,
+    onError: Colors.white,
     surface: AppColors.surface,
     onSurface: AppColors.onSurface,
     surfaceContainerHighest: AppColors.surfaceVariant,
@@ -40,7 +87,7 @@ ThemeData buildAppTheme() {
 
   return ThemeData(
     useMaterial3: true,
-    brightness: Brightness.dark,
+    brightness: Brightness.light,
     colorScheme: scheme,
     scaffoldBackgroundColor: AppColors.background,
     canvasColor: AppColors.background,
@@ -49,18 +96,32 @@ ThemeData buildAppTheme() {
       backgroundColor: AppColors.background,
       foregroundColor: AppColors.onSurface,
       elevation: 0,
-      centerTitle: false,
+      centerTitle: true,
+      systemOverlayStyle: SystemUiOverlayStyle.dark,
     ),
-    textTheme: Typography.whiteCupertino.apply(
-      bodyColor: AppColors.onSurface,
-      displayColor: AppColors.onSurface,
+    textTheme: const TextTheme(
+      titleLarge: AppTextStyles.largeTitle,
+      titleMedium: AppTextStyles.title,
+      bodyLarge: AppTextStyles.body,
+      bodyMedium: AppTextStyles.subhead,
+      bodySmall: AppTextStyles.footnote,
+    ),
+    iconTheme: const IconThemeData(color: AppColors.primary),
+    cupertinoOverrideTheme: const CupertinoThemeData(
+      brightness: Brightness.light,
+      primaryColor: AppColors.primary,
+      scaffoldBackgroundColor: AppColors.background,
+      barBackgroundColor: AppColors.background,
+      textTheme: CupertinoTextThemeData(
+        primaryColor: AppColors.primary,
+      ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: AppColors.surfaceVariant,
+      fillColor: AppColors.surface,
       contentPadding:
-          const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      hintStyle: const TextStyle(color: AppColors.onSurfaceMuted),
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      hintStyle: const TextStyle(color: AppColors.onSurfaceFaint),
       labelStyle: const TextStyle(color: AppColors.onSurfaceMuted),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadii.inputField),
@@ -75,33 +136,23 @@ ThemeData buildAppTheme() {
         borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
       ),
     ),
-    filledButtonTheme: FilledButtonThemeData(
-      style: FilledButton.styleFrom(
-        backgroundColor: AppColors.surfaceVariant,
-        foregroundColor: AppColors.onSurface,
-        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 18),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadii.pill),
-        ),
-        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-      ),
+    dialogTheme: const DialogThemeData(
+      backgroundColor: AppColors.surface,
+      surfaceTintColor: Colors.transparent,
     ),
-    outlinedButtonTheme: OutlinedButtonThemeData(
-      style: OutlinedButton.styleFrom(
-        backgroundColor: AppColors.surfaceVariant,
-        foregroundColor: AppColors.onSurface,
-        side: BorderSide.none,
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadii.pill),
-        ),
-        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+    switchTheme: SwitchThemeData(
+      thumbColor: WidgetStateProperty.resolveWith(
+          (states) => Colors.white),
+      trackColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.selected)
+            ? AppColors.success
+            : AppColors.surfaceVariant,
       ),
+      trackOutlineColor:
+          const WidgetStatePropertyAll(Colors.transparent),
     ),
-    dropdownMenuTheme: const DropdownMenuThemeData(
-      menuStyle: MenuStyle(
-        backgroundColor: WidgetStatePropertyAll(AppColors.surfaceVariant),
-      ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(foregroundColor: AppColors.primary),
     ),
   );
 }
