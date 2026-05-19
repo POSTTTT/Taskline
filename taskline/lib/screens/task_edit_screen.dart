@@ -77,7 +77,7 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
         return Dialog(
           backgroundColor: AppColors.surface,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(14),
           ),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 360),
@@ -88,26 +88,26 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
                 children: [
                   Row(
                     children: [
-                      TextButton(
+                      CupertinoButton(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
                         onPressed: () => Navigator.of(ctx).pop(),
                         child: const Text(
                           'Cancel',
-                          style: TextStyle(color: AppColors.onSurfaceMuted),
+                          style: TextStyle(color: AppColors.primary),
                         ),
                       ),
                       const Spacer(),
                       const Padding(
                         padding: EdgeInsets.symmetric(horizontal: 8),
-                        child: Text(
-                          'Time',
-                          style: TextStyle(
-                            color: AppColors.onSurface,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                        child: Text('Time',
+                            style: TextStyle(
+                              color: AppColors.onSurface,
+                              fontWeight: FontWeight.w600,
+                            )),
                       ),
                       const Spacer(),
-                      TextButton(
+                      CupertinoButton(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
                         onPressed: () => Navigator.of(ctx).pop(temp),
                         child: const Text(
                           'Done',
@@ -130,28 +130,17 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
                       },
                       child: ScrollConfiguration(
                         behavior: const _DragWithMouseScrollBehavior(),
-                        child: CupertinoTheme(
-                          data: const CupertinoThemeData(
-                            brightness: Brightness.dark,
-                            textTheme: CupertinoTextThemeData(
-                              dateTimePickerTextStyle: TextStyle(
-                                color: AppColors.onSurface,
-                                fontSize: 22,
-                              ),
-                            ),
-                          ),
-                          child: CupertinoDatePicker(
-                            mode: CupertinoDatePickerMode.time,
-                            use24hFormat: use24h,
-                            initialDateTime: _deadline,
-                            minuteInterval: 1,
-                            onDateTimeChanged: (v) => temp = DateTime(
-                              _deadline.year,
-                              _deadline.month,
-                              _deadline.day,
-                              v.hour,
-                              v.minute,
-                            ),
+                        child: CupertinoDatePicker(
+                          mode: CupertinoDatePickerMode.time,
+                          use24hFormat: use24h,
+                          initialDateTime: _deadline,
+                          minuteInterval: 1,
+                          onDateTimeChanged: (v) => temp = DateTime(
+                            _deadline.year,
+                            _deadline.month,
+                            _deadline.day,
+                            v.hour,
+                            v.minute,
                           ),
                         ),
                       ),
@@ -166,6 +155,41 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
     );
 
     if (picked != null) setState(() => _deadline = picked);
+  }
+
+  Future<void> _pickRecurrence() async {
+    final picked = await showCupertinoModalPopup<Recurrence>(
+      context: context,
+      builder: (ctx) => CupertinoActionSheet(
+        title: const Text('Repeat'),
+        actions: [
+          for (final r in Recurrence.values)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.of(ctx).pop(r),
+              isDefaultAction: r == _recurrence,
+              child: Text(_recurrenceLabel(r)),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(ctx).pop(),
+          child: const Text('Cancel'),
+        ),
+      ),
+    );
+    if (picked != null) setState(() => _recurrence = picked);
+  }
+
+  String _recurrenceLabel(Recurrence r) {
+    switch (r) {
+      case Recurrence.none:
+        return 'Never';
+      case Recurrence.daily:
+        return 'Daily';
+      case Recurrence.weekly:
+        return 'Weekly';
+      case Recurrence.monthly:
+        return 'Monthly';
+    }
   }
 
   Future<void> _save() async {
@@ -204,209 +228,175 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        elevation: 0,
+        leadingWidth: 80,
+        leading: CupertinoButton(
+          padding: const EdgeInsets.only(left: 16),
+          onPressed: _saving ? null : () => Navigator.of(context).pop(),
+          child: const Text(
+            'Cancel',
+            style: TextStyle(color: AppColors.primary, fontSize: 17),
+          ),
+        ),
+        title: Text(_isEditing ? 'Edit Task' : 'New Task',
+            style: AppTextStyles.title),
+        actions: [
+          CupertinoButton(
+            padding: const EdgeInsets.only(right: 16),
+            onPressed: _saving ? null : _save,
+            child: const Text(
+              'Save',
+              style: TextStyle(
+                color: AppColors.primary,
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          children: [
+            _GroupedSection(
               children: [
-                _Header(title: _isEditing ? 'Edit task' : 'New tasks'),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: ListView(
-                    children: [
-                      const _FieldLabel('Task name'),
-                      TextFormField(
-                        controller: _titleController,
-                        autofocus: !_isEditing,
-                        textInputAction: TextInputAction.next,
-                        style: const TextStyle(color: AppColors.onSurface),
-                        decoration: const InputDecoration(),
-                        validator: (v) => (v == null || v.trim().isEmpty)
-                            ? 'Title is required'
-                            : null,
-                      ),
-                      const SizedBox(height: 20),
-                      const _FieldLabel('Description'),
-                      TextFormField(
-                        controller: _descriptionController,
-                        maxLines: 5,
-                        minLines: 5,
-                        style: const TextStyle(color: AppColors.onSurface),
-                        decoration: InputDecoration(
-                          contentPadding:
-                              const EdgeInsets.symmetric(
-                                  horizontal: 24, vertical: 20),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(24),
-                            borderSide: BorderSide.none,
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(24),
-                            borderSide: BorderSide.none,
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(24),
-                            borderSide: const BorderSide(
-                                color: AppColors.primary, width: 1.5),
-                          ),
-                          filled: true,
-                          fillColor: AppColors.surfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _LabeledField(
-                              label: 'Due date',
-                              child: _PillSelector(
-                                text: dateFormat.format(_deadline),
-                                onTap: _pickDate,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 24),
-                          Expanded(
-                            child: _LabeledField(
-                              label: 'Time',
-                              child: _PillSelector(
-                                text: timeFormat.format(_deadline),
-                                onTap: _pickTime,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      const _FieldLabel('Repeat'),
-                      _RecurrenceDropdown(
-                        value: _recurrence,
-                        onChanged: (v) => setState(() => _recurrence = v),
-                      ),
-                    ],
-                  ),
+                _CellTextField(
+                  controller: _titleController,
+                  hint: 'Title',
+                  autofocus: !_isEditing,
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? 'Title is required'
+                      : null,
                 ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _BottomButton(
-                        label: 'Save',
-                        onPressed: _saving ? null : _save,
-                      ),
-                    ),
-                    const SizedBox(width: 24),
-                    Expanded(
-                      child: _BottomButton(
-                        label: 'Cancel',
-                        onPressed: _saving
-                            ? null
-                            : () => Navigator.of(context).pop(),
-                      ),
-                    ),
-                  ],
+                const _CellDivider(),
+                _CellTextField(
+                  controller: _descriptionController,
+                  hint: 'Notes',
+                  maxLines: 4,
                 ),
               ],
             ),
-          ),
+            const SizedBox(height: 24),
+            _SectionHeader('Deadline'),
+            _GroupedSection(
+              children: [
+                _ValueCell(
+                  label: 'Date',
+                  value: dateFormat.format(_deadline),
+                  onTap: _pickDate,
+                ),
+                const _CellDivider(),
+                _ValueCell(
+                  label: 'Time',
+                  value: timeFormat.format(_deadline),
+                  onTap: _pickTime,
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            _SectionHeader('Repeat'),
+            _GroupedSection(
+              children: [
+                _ValueCell(
+                  label: 'Frequency',
+                  value: _recurrenceLabel(_recurrence),
+                  onTap: _pickRecurrence,
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _Header extends StatelessWidget {
-  const _Header({required this.title});
+class _GroupedSection extends StatelessWidget {
+  const _GroupedSection({required this.children});
 
-  final String title;
+  final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.onSurface),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        const SizedBox(width: 4),
-        Text(
-          title,
-          style: const TextStyle(
-            color: AppColors.onSurface,
-            fontSize: 28,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadii.card),
+      child: Container(
+        color: AppColors.surface,
+        child: Column(children: children),
+      ),
     );
   }
 }
 
-class _FieldLabel extends StatelessWidget {
-  const _FieldLabel(this.label);
+class _CellDivider extends StatelessWidget {
+  const _CellDivider();
 
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.only(left: 16),
+      child: Divider(
+        height: 0.5,
+        thickness: 0.5,
+        color: AppColors.divider,
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader(this.label);
   final String label;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(left: 8, bottom: 8),
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: AppColors.onSurfaceMuted,
-          fontSize: 14,
-        ),
-      ),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+      child: Text(label.toUpperCase(), style: AppTextStyles.sectionHeader),
     );
   }
 }
 
-class _LabeledField extends StatelessWidget {
-  const _LabeledField({required this.label, required this.child});
+class _ValueCell extends StatelessWidget {
+  const _ValueCell({
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
 
   final String label;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _FieldLabel(label),
-        child,
-      ],
-    );
-  }
-}
-
-class _PillSelector extends StatelessWidget {
-  const _PillSelector({required this.text, required this.onTap});
-
-  final String text;
+  final String value;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.surfaceVariant,
-      borderRadius: BorderRadius.circular(AppRadii.pill),
+      color: AppColors.surface,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadii.pill),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Center(
-            child: Text(
-              text,
-              style: const TextStyle(
-                color: AppColors.onSurface,
-                fontSize: 18,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Text(label, style: AppTextStyles.body),
+              const Spacer(),
+              Text(
+                value,
+                style: AppTextStyles.body.copyWith(
+                  color: AppColors.onSurfaceMuted,
+                ),
               ),
-            ),
+              const SizedBox(width: 6),
+              const Icon(
+                CupertinoIcons.chevron_right,
+                size: 14,
+                color: AppColors.onSurfaceFaint,
+              ),
+            ],
           ),
         ),
       ),
@@ -414,53 +404,39 @@ class _PillSelector extends StatelessWidget {
   }
 }
 
-class _RecurrenceDropdown extends StatelessWidget {
-  const _RecurrenceDropdown({required this.value, required this.onChanged});
+class _CellTextField extends StatelessWidget {
+  const _CellTextField({
+    required this.controller,
+    required this.hint,
+    this.maxLines = 1,
+    this.autofocus = false,
+    this.validator,
+  });
 
-  final Recurrence value;
-  final ValueChanged<Recurrence> onChanged;
-
-  String _label(Recurrence r) {
-    switch (r) {
-      case Recurrence.none:
-        return 'Does not repeat';
-      case Recurrence.daily:
-        return 'Daily';
-      case Recurrence.weekly:
-        return 'Weekly';
-      case Recurrence.monthly:
-        return 'Monthly';
-    }
-  }
+  final TextEditingController controller;
+  final String hint;
+  final int maxLines;
+  final bool autofocus;
+  final String? Function(String?)? validator;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surfaceVariant,
-        borderRadius: BorderRadius.circular(AppRadii.pill),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<Recurrence>(
-          value: value,
-          isExpanded: true,
-          dropdownColor: AppColors.surfaceVariant,
-          iconEnabledColor: AppColors.onSurface,
-          style: const TextStyle(
-            color: AppColors.onSurface,
-            fontSize: 16,
-          ),
-          items: Recurrence.values
-              .map((r) => DropdownMenuItem(
-                    value: r,
-                    child: Text(_label(r)),
-                  ))
-              .toList(),
-          onChanged: (v) {
-            if (v != null) onChanged(v);
-          },
-        ),
+    return TextFormField(
+      controller: controller,
+      autofocus: autofocus,
+      maxLines: maxLines,
+      style: AppTextStyles.body,
+      validator: validator,
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(color: AppColors.onSurfaceFaint),
+        filled: true,
+        fillColor: AppColors.surface,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        border: InputBorder.none,
+        enabledBorder: InputBorder.none,
+        focusedBorder: InputBorder.none,
       ),
     );
   }
@@ -477,36 +453,4 @@ class _DragWithMouseScrollBehavior extends MaterialScrollBehavior {
         PointerDeviceKind.trackpad,
         PointerDeviceKind.unknown,
       };
-}
-
-class _BottomButton extends StatelessWidget {
-  const _BottomButton({required this.label, required this.onPressed});
-
-  final String label;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.surfaceVariant,
-      borderRadius: BorderRadius.circular(AppRadii.pill),
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(AppRadii.pill),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 18),
-          child: Center(
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: AppColors.onSurface,
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
