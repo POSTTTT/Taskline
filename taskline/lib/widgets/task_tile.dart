@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../models/app_settings.dart';
 import '../models/task.dart';
+import '../providers/settings_provider.dart';
+import '../theme/app_theme.dart';
 
-class TaskTile extends StatelessWidget {
+class TaskTile extends ConsumerWidget {
   const TaskTile({
     super.key,
     required this.task,
@@ -15,46 +19,127 @@ class TaskTile extends StatelessWidget {
   final VoidCallback? onTap;
   final ValueChanged<bool?>? onToggleDone;
 
-  static final _dateFormat = DateFormat('EEE, MMM d • h:mm a');
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final localDeadline = task.deadline.toLocal();
+    final settings =
+        ref.watch(settingsProvider).value ?? const AppSettings();
+    final formatted = DateFormat(settings.combinedPattern).format(localDeadline);
+
+    return Material(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(AppRadii.card),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadii.card),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+          child: Row(
+            children: [
+              _Checkbox(value: task.isDone, onChanged: onToggleDone),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      task.title,
+                      style: const TextStyle(
+                        color: AppColors.onSurface,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Text(
+                          'Due: $formatted',
+                          style: const TextStyle(
+                            color: AppColors.onSurfaceMuted,
+                            fontSize: 12,
+                          ),
+                        ),
+                        if (task.recurrence != Recurrence.none) ...[
+                          const SizedBox(width: 8),
+                          const Icon(Icons.repeat,
+                              size: 12, color: AppColors.onSurfaceMuted),
+                          const SizedBox(width: 2),
+                          Text(
+                            task.recurrence.name,
+                            style: const TextStyle(
+                              color: AppColors.onSurfaceMuted,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              const _TrailingIndicator(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Checkbox extends StatelessWidget {
+  const _Checkbox({required this.value, this.onChanged});
+
+  final bool value;
+  final ValueChanged<bool?>? onChanged;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final localDeadline = task.deadline.toLocal();
-    final isOverdue = !task.isDone && localDeadline.isBefore(DateTime.now());
-
-    final titleStyle = theme.textTheme.bodyLarge?.copyWith(
-      decoration: task.isDone ? TextDecoration.lineThrough : null,
-      color: task.isDone ? theme.disabledColor : null,
-    );
-
-    final deadlineStyle = theme.textTheme.bodySmall?.copyWith(
-      color: isOverdue ? theme.colorScheme.error : theme.hintColor,
-      fontWeight: isOverdue ? FontWeight.w600 : null,
-    );
-
-    return ListTile(
-      onTap: onTap,
-      leading: Checkbox(value: task.isDone, onChanged: onToggleDone),
-      title: Text(task.title, style: titleStyle),
-      subtitle: Row(
-        children: [
-          Icon(
-            isOverdue ? Icons.warning_amber_rounded : Icons.event,
-            size: 14,
-            color: deadlineStyle?.color,
+    return GestureDetector(
+      onTap: onChanged == null ? null : () => onChanged!(!value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        width: 26,
+        height: 26,
+        decoration: BoxDecoration(
+          color: value ? AppColors.onSurface : AppColors.primaryMuted,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: value
+                ? AppColors.onSurface
+                : AppColors.onSurfaceMuted.withValues(alpha: 0.5),
           ),
-          const SizedBox(width: 4),
-          Text(_dateFormat.format(localDeadline), style: deadlineStyle),
-          if (task.recurrence != Recurrence.none) ...[
-            const SizedBox(width: 8),
-            Icon(Icons.repeat, size: 14, color: theme.hintColor),
-            const SizedBox(width: 2),
-            Text(task.recurrence.name, style: theme.textTheme.bodySmall),
-          ],
-        ],
+        ),
+        child: value
+            ? const Icon(Icons.check, size: 18, color: AppColors.background)
+            : null,
       ),
-      trailing: const Icon(Icons.chevron_right),
+    );
+  }
+}
+
+class _TrailingIndicator extends StatelessWidget {
+  const _TrailingIndicator();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 28,
+      height: 28,
+      decoration: const BoxDecoration(
+        color: AppColors.background,
+        shape: BoxShape.circle,
+      ),
+      alignment: Alignment.center,
+      child: const Icon(
+        Icons.play_arrow_rounded,
+        size: 18,
+        color: AppColors.onSurface,
+      ),
     );
   }
 }

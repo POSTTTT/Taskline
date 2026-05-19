@@ -1,9 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models/app_settings.dart';
 import '../models/task.dart';
 import '../services/database.dart';
 import '../services/notification_service.dart';
 import '../services/task_repository.dart';
+import 'settings_provider.dart';
 
 final appDatabaseProvider = FutureProvider<AppDatabase>((ref) async {
   final db = await AppDatabase.open();
@@ -24,10 +26,13 @@ class TasksNotifier extends AsyncNotifier<List<Task>> {
   @override
   Future<List<Task>> build() async {
     final repo = await ref.watch(taskRepositoryProvider.future);
+    final settings = await ref.watch(settingsProvider.future);
     final tasks = await repo.getAll();
-    await ref.read(notificationServiceProvider).syncAll(tasks);
+    await ref.read(notificationServiceProvider).syncAll(tasks, settings);
     return tasks;
   }
+
+  Future<AppSettings> _settings() => ref.read(settingsProvider.future);
 
   Future<void> _refresh() async {
     state = const AsyncValue.loading();
@@ -40,7 +45,8 @@ class TasksNotifier extends AsyncNotifier<List<Task>> {
   Future<void> add(Task task) async {
     final repo = await ref.read(taskRepositoryProvider.future);
     final saved = await repo.create(task);
-    await ref.read(notificationServiceProvider).schedule(saved);
+    final settings = await _settings();
+    await ref.read(notificationServiceProvider).schedule(saved, settings);
     await _refresh();
   }
 
@@ -48,8 +54,9 @@ class TasksNotifier extends AsyncNotifier<List<Task>> {
     final repo = await ref.read(taskRepositoryProvider.future);
     await repo.update(task);
     final notifications = ref.read(notificationServiceProvider);
+    final settings = await _settings();
     await notifications.cancel(task.id!);
-    await notifications.schedule(task);
+    await notifications.schedule(task, settings);
     await _refresh();
   }
 
@@ -62,6 +69,13 @@ class TasksNotifier extends AsyncNotifier<List<Task>> {
 
   Future<void> toggleDone(Task task) async {
     await edit(task.copyWith(isDone: !task.isDone));
+  }
+
+  Future<void> resyncNotifications() async {
+    final current = state.value;
+    if (current == null) return;
+    final settings = await _settings();
+    await ref.read(notificationServiceProvider).syncAll(current, settings);
   }
 }
 
