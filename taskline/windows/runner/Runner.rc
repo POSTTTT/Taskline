@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.taskline" "\0"
-            VALUE "FileDescription", "taskline" "\0"
+            VALUE "CompanyName", "Taskline" "\0"
+            VALUE "FileDescription", "Taskline \xE2\x80\x94 task and deadline reminders" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "taskline" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.taskline. All rights reserved." "\0"
+            VALUE "InternalName", "Taskline" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Taskline. All rights reserved." "\0"
             VALUE "OriginalFilename", "taskline.exe" "\0"
-            VALUE "ProductName", "taskline" "\0"
+            VALUE "ProductName", "Taskline" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

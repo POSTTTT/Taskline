@@ -115,6 +115,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ],
           ),
           const SizedBox(height: 24),
+          _SectionHeader('General'),
+          _GroupedSection(
+            children: [
+              _SwitchRow(
+                label: 'Launch at startup',
+                value: settings.launchAtStartup,
+                onChanged: (v) =>
+                    _save(settings.copyWith(launchAtStartup: v)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
           _SectionHeader('Appearance'),
           _GroupedSection(
             children: const [
@@ -210,6 +222,35 @@ class _StaticRow extends StatelessWidget {
               )),
           const SizedBox(width: 6),
           trailing,
+        ],
+      ),
+    );
+  }
+}
+
+class _SwitchRow extends StatelessWidget {
+  const _SwitchRow({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          Expanded(child: Text(label, style: AppTextStyles.body)),
+          CupertinoSwitch(
+            value: value,
+            activeTrackColor: AppColors.success,
+            onChanged: onChanged,
+          ),
         ],
       ),
     );

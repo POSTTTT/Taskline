@@ -44,6 +44,7 @@ dependencies:
   timezone: ^0.11.0
   flutter_timezone: ^5.0.2
   shared_preferences: ^2.5.5
+  launch_at_startup: ^0.5.1
 
 dev_dependencies:
   flutter_test:
@@ -55,6 +56,26 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  msix: ^3.16.13
+
+# MSIX installer configuration. Produced by `dart run msix:create`.
+# Identity_name + publisher must match what was set in the Phase 3
+# notification GUID/AUMID (com.taskline.taskline) so a packaged install
+# satisfies the AUMID-shortcut requirement automatically.
+msix_config:
+  display_name: Taskline
+  publisher_display_name: Taskline
+  identity_name: com.taskline.taskline
+  publisher: CN=Taskline
+  msix_version: 1.0.0.0
+  logo_path: windows/runner/resources/taskline_logo.png
+  app_uri_handler_hosts: ''
+  capabilities: ''
+  store: false
+  toast_activator:
+    clsid: 3ec2a3e7-5b9d-4a8f-b1c4-7d2e6f8a9b3c
+    arguments: '----AppNotificationActivationServer.exe'
+    display_name: Taskline Notifications
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
