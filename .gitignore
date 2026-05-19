@@ -9,6 +9,8 @@
 *.pfx
 *.cer
 *.crt
+# Public code-signing cert is committed so end users can trust the signed MSIX.
+!scripts/taskline.cer
 secrets/
 **/credentials.json
 **/service-account*.json
