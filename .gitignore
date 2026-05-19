@@ -1,0 +1,76 @@
+# ---- Secrets & credentials -------------------------------------------------
+# Never commit anything that looks like an API key, token, or password.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.cer
+*.crt
+secrets/
+**/credentials.json
+**/service-account*.json
+
+# ---- Claude Code state (per-user) ------------------------------------------
+# settings.local.json holds permission allowlists keyed to this machine.
+# Anything else under .claude/ is also per-user.
+.claude/
+
+# ---- IDE & editor (per-user) -----------------------------------------------
+# VS Code / Cursor: user settings + launch configs reference local paths.
+.vscode/
+!.vscode/extensions.json        # OK to share recommended extensions
+# JetBrains
+.idea/
+*.iml
+*.ipr
+*.iws
+# Sublime / Vim / Emacs
+*.sublime-workspace
+*.sublime-project
+*.swp
+*.swo
+*~
+.\#*
+\#*\#
+
+# ---- OS clutter ------------------------------------------------------------
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# ---- Logs & temp -----------------------------------------------------------
+*.log
+*.tmp
+*.temp
+*.bak
+*.orig
+*.rej
+
+# ---- Local Flutter / Dart artefacts (defensive; taskline/.gitignore already
+#       covers these, but listing here protects future sub-projects too) -----
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.packages
+**/build/
+**/.pub-cache/
+**/.pub/
+**/coverage/
+**/pubspec_overrides.yaml
+**/local.properties
+
+# ---- Windows build by-products that sometimes escape build/ ----------------
+*.pdb
+*.exp
+*.lib
+*.dll
+*.exe
+# (the actual release exe lives under taskline/build/ which is already ignored)
