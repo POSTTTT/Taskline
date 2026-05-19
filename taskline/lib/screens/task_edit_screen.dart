@@ -34,8 +34,7 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
     _titleController = TextEditingController(text: existing?.title ?? '');
     _descriptionController =
         TextEditingController(text: existing?.description ?? '');
-    _deadline = existing?.deadline.toLocal() ??
-        DateTime.now().add(const Duration(hours: 1));
+    _deadline = existing?.deadline.toLocal() ?? DateTime.now();
     _recurrence = existing?.recurrence ?? Recurrence.none;
   }
 
