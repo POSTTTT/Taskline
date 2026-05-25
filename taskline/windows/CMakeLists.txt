@@ -32,6 +32,13 @@ set(CMAKE_CXX_FLAGS_PROFILE "${CMAKE_CXX_FLAGS_RELEASE}")
 # Use Unicode for all projects.
 add_definitions(-DUNICODE -D_UNICODE)
 
+# Workaround: MSVC 14.51+ (Visual Studio 18.6, May 2026) turned the deprecation
+# warning for <experimental/coroutine> into a hard error. flutter_local_notifications_windows
+# 3.0.0 still pulls that header in transitively via C++/WinRT. Silence the
+# assert until the upstream plugin migrates to standard <coroutine>.
+# Track: https://github.com/MaikuB/flutter_local_notifications/issues/2777
+add_definitions(-D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)
+
 # Compilation settings that should be applied to most targets.
 #
 # Be cautious about adding new options here, as plugins use this function by
