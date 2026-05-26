@@ -5,11 +5,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/task.dart';
 import '../providers/providers.dart';
 import '../theme/app_theme.dart';
+import '../widgets/calendar_view.dart';
+import '../widgets/nb.dart';
 import '../widgets/task_tile.dart';
 import 'settings_screen.dart';
 import 'task_edit_screen.dart';
 
-enum TaskFilter { upcoming, complete }
+enum TaskFilter { upcoming, complete, calendar }
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -27,7 +29,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         return all.where((t) => !t.isDone).toList();
       case TaskFilter.complete:
         return all.where((t) => t.isDone).toList();
+      case TaskFilter.calendar:
+        return all; // calendar handles its own filtering
     }
+  }
+
+  void _openTaskEditor(Task task) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => TaskEditScreen(task: task)),
+    );
   }
 
   void _openNewTask() {
@@ -56,64 +66,75 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                  child: CupertinoSlidingSegmentedControl<TaskFilter>(
-                    groupValue: _filter,
-                    backgroundColor: AppColors.surfaceVariant,
-                    thumbColor: AppColors.surface,
-                    onValueChanged: (v) {
-                      if (v != null) setState(() => _filter = v);
-                    },
-                    children: const {
-                      TaskFilter.upcoming: Padding(
-                        padding: EdgeInsets.symmetric(vertical: 8),
-                        child: Text('Upcoming'),
-                      ),
-                      TaskFilter.complete: Padding(
-                        padding: EdgeInsets.symmetric(vertical: 8),
-                        child: Text('Complete'),
-                      ),
-                    },
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                  child: Row(
+                    children: [
+                      Text('TASKLINE', style: AppTextStyles.largeTitle),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+                  child: NbSegmentedControl<TaskFilter>(
+                    value: _filter,
+                    options: TaskFilter.values,
+                    labelOf: _filterLabel,
+                    onChanged: (v) => setState(() => _filter = v),
                   ),
                 ),
                 Expanded(
-                  child: tasks.when(
-                    loading: () =>
-                        const Center(child: CupertinoActivityIndicator()),
-                    error: (err, _) => Center(
-                      child: Text('Error: $err',
-                          style: AppTextStyles.body
-                              .copyWith(color: AppColors.destructive)),
-                    ),
-                    data: (all) {
-                      final list = _filtered(all);
-                      if (list.isEmpty) return const _EmptyState();
-                      return ListView(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-                        children: [_GroupedTaskList(tasks: list)],
-                      );
-                    },
-                  ),
+                  child: _filter == TaskFilter.calendar
+                      ? CalendarView(onTaskTap: _openTaskEditor)
+                      : tasks.when(
+                          loading: () =>
+                              const Center(child: CupertinoActivityIndicator()),
+                          error: (err, _) => Center(
+                            child: Text('Error: $err',
+                                style: AppTextStyles.body
+                                    .copyWith(color: AppColors.destructive)),
+                          ),
+                          data: (all) {
+                            final list = _filtered(all);
+                            if (list.isEmpty) return const _EmptyState();
+                            return ListView.separated(
+                              padding:
+                                  const EdgeInsets.fromLTRB(20, 4, 20, 110),
+                              itemCount: list.length,
+                              separatorBuilder: (_, _) =>
+                                  const SizedBox(height: 14),
+                              itemBuilder: (context, i) {
+                                final task = list[i];
+                                return TaskTile(
+                                  task: task,
+                                  onTap: () => _openTaskEditor(task),
+                                );
+                              },
+                            );
+                          },
+                        ),
                 ),
               ],
             ),
             Positioned(
-              left: 16,
-              bottom: 16 + MediaQuery.of(context).padding.bottom,
-              child: _BottomCircleButton(
-                icon: CupertinoIcons.settings,
+              left: 20,
+              bottom: 20 + MediaQuery.of(context).padding.bottom,
+              child: NbIconButton(
+                icon: Icons.settings,
+                color: AppColors.surface,
+                size: 48,
                 onPressed: _openSettings,
                 tooltip: 'Settings',
               ),
             ),
             Positioned(
-              right: 16,
-              bottom: 16 + MediaQuery.of(context).padding.bottom,
-              child: _BottomCircleButton(
-                icon: CupertinoIcons.add,
+              right: 20,
+              bottom: 20 + MediaQuery.of(context).padding.bottom,
+              child: NbIconButton(
+                icon: Icons.add,
+                color: AppColors.primary,
+                size: 56,
                 onPressed: _openNewTask,
                 tooltip: 'New task',
-                filled: true,
               ),
             ),
           ],
@@ -123,182 +144,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 }
 
-class _BottomCircleButton extends StatelessWidget {
-  const _BottomCircleButton({
-    required this.icon,
-    required this.onPressed,
-    this.tooltip,
-    this.filled = false,
-  });
-
-  final IconData icon;
-  final VoidCallback onPressed;
-  final String? tooltip;
-  final bool filled;
-
-  @override
-  Widget build(BuildContext context) {
-    final button = Material(
-      color: filled ? AppColors.primary : AppColors.surface,
-      shape: const CircleBorder(),
-      elevation: 2,
-      shadowColor: Colors.black.withValues(alpha: 0.2),
-      child: InkWell(
-        onTap: onPressed,
-        customBorder: const CircleBorder(),
-        child: SizedBox(
-          width: 56,
-          height: 56,
-          child: Icon(
-            icon,
-            size: filled ? 28 : 24,
-            color: filled ? Colors.white : AppColors.primary,
-          ),
-        ),
-      ),
-    );
-    if (tooltip != null) return Tooltip(message: tooltip!, child: button);
-    return button;
-  }
-}
-
-class _GroupedTaskList extends ConsumerWidget {
-  const _GroupedTaskList({required this.tasks});
-
-  final List<Task> tasks;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppRadii.card),
-      child: Container(
-        color: AppColors.surface,
-        child: Column(
-          children: [
-            for (var i = 0; i < tasks.length; i++) ...[
-              _SwipeRow(
-                task: tasks[i],
-                onToggleDone: () =>
-                    ref.read(tasksProvider.notifier).toggleDone(tasks[i]),
-                onDelete: () =>
-                    ref.read(tasksProvider.notifier).remove(tasks[i].id!),
-                child: TaskTile(
-                  task: tasks[i],
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => TaskEditScreen(task: tasks[i]),
-                    ),
-                  ),
-                  onToggleDone: (_) =>
-                      ref.read(tasksProvider.notifier).toggleDone(tasks[i]),
-                ),
-              ),
-              if (i != tasks.length - 1)
-                const Padding(
-                  padding: EdgeInsets.only(left: 52),
-                  child: Divider(
-                    height: 0.5,
-                    thickness: 0.5,
-                    color: AppColors.divider,
-                  ),
-                ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SwipeRow extends StatelessWidget {
-  const _SwipeRow({
-    required this.task,
-    required this.child,
-    required this.onToggleDone,
-    required this.onDelete,
-  });
-
-  final Task task;
-  final Widget child;
-  final VoidCallback onToggleDone;
-  final VoidCallback onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    return Dismissible(
-      key: ValueKey(task.id),
-      direction: DismissDirection.horizontal,
-      background: Container(
-        color: AppColors.success,
-        alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Row(
-          children: [
-            const Icon(CupertinoIcons.check_mark_circled_solid,
-                color: Colors.white),
-            const SizedBox(width: 8),
-            Text(
-              task.isDone ? 'Mark undone' : 'Complete',
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ),
-      secondaryBackground: Container(
-        color: AppColors.destructive,
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            Text(
-              'Delete',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            SizedBox(width: 8),
-            Icon(CupertinoIcons.delete_solid, color: Colors.white),
-          ],
-        ),
-      ),
-      confirmDismiss: (direction) async {
-        if (direction == DismissDirection.startToEnd) {
-          onToggleDone();
-          return false; // keep the row visible, just toggled
-        }
-        return _confirmDelete(context, task.title);
-      },
-      onDismissed: (direction) {
-        if (direction == DismissDirection.endToStart) onDelete();
-      },
-      child: child,
-    );
-  }
-
-  Future<bool?> _confirmDelete(BuildContext context, String title) {
-    return showCupertinoDialog<bool>(
-      context: context,
-      builder: (ctx) => CupertinoAlertDialog(
-        title: const Text('Delete task?'),
-        content: Text('"$title" will be permanently removed.'),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          CupertinoDialogAction(
-            isDestructiveAction: true,
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
+String _filterLabel(TaskFilter f) {
+  switch (f) {
+    case TaskFilter.upcoming:
+      return 'UPCOMING';
+    case TaskFilter.complete:
+      return 'COMPLETE';
+    case TaskFilter.calendar:
+      return 'CALENDAR';
   }
 }
 
@@ -311,22 +164,17 @@ class _EmptyState extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 32),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
-          Icon(CupertinoIcons.checkmark_seal,
-              size: 56, color: AppColors.onSurfaceFaint),
-          SizedBox(height: 12),
-          Text('No tasks',
-              style: TextStyle(
+        children: [
+          const Icon(Icons.inbox_outlined,
+              size: 72, color: AppColors.onSurfaceFaint),
+          const SizedBox(height: 16),
+          Text('NO TASKS', style: AppTextStyles.title),
+          const SizedBox(height: 6),
+          Text('Tap + to add one.',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.body.copyWith(
                 color: AppColors.onSurfaceMuted,
-                fontSize: 17,
-                fontWeight: FontWeight.w500,
               )),
-          SizedBox(height: 4),
-          Text(
-            'Tap + to add a new one.',
-            style: AppTextStyles.footnote,
-            textAlign: TextAlign.center,
-          ),
         ],
       ),
     );

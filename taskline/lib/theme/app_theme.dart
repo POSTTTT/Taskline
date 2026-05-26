@@ -1,34 +1,74 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-/// iOS-style light palette modeled after Apple Reminders / Things 3.
+/// Neo-brutalist palette: cream background, white cards with thick black
+/// borders, bright yellow primary, hard offset shadows.
 class AppColors {
   AppColors._();
 
-  static const Color background = Color(0xFFF2F2F7); // systemGroupedBackground
-  static const Color surface = Color(0xFFFFFFFF); // grouped section bg
-  static const Color surfaceVariant = Color(0xFFE5E5EA); // tertiary system fill
+  static const Color background = Color(0xFFFEFCE8); // cream
+  static const Color surface = Color(0xFFFFFFFF);
+  static const Color surfaceVariant = Color(0xFFFFF7B2); // light yellow tint
+  static const Color border = Color(0xFF000000);
 
-  static const Color primary = Color(0xFF007AFF); // systemBlue
-  static const Color destructive = Color(0xFFFF3B30); // systemRed
-  static const Color success = Color(0xFF34C759); // systemGreen
-  static const Color warning = Color(0xFFFF9500); // systemOrange
+  static const Color primary = Color(0xFFFFD700); // signature yellow
+  static const Color primaryDark = Color(0xFFE6B800);
+  static const Color secondary = Color(0xFFA7F432); // lime accent
+  static const Color destructive = Color(0xFFFF6B6B);
+  static const Color success = Color(0xFFA7F432);
+  static const Color warning = Color(0xFFFF9F1C);
 
-  static const Color onSurface = Color(0xFF000000); // label
-  static const Color onSurfaceMuted = Color(0x993C3C43); // secondaryLabel ~60%
-  static const Color onSurfaceFaint = Color(0x4D3C3C43); // tertiaryLabel ~30%
+  static const Color onSurface = Color(0xFF000000);
+  static const Color onSurfaceMuted = Color(0xFF3F3F46);
+  static const Color onSurfaceFaint = Color(0xFF71717A);
+  static const Color groupedHeader = Color(0xFF000000);
 
-  static const Color divider = Color(0x5C3C3C43); // separator ~36%
-  static const Color groupedHeader = Color(0xFF6C6C70); // header text
+  // Backwards-compat alias used by some old call sites.
+  static const Color divider = Color(0xFF000000);
 }
 
 class AppRadii {
   AppRadii._();
 
-  static const double card = 10; // iOS grouped section radius
-  static const double pill = 22;
-  static const double inputField = 10;
+  /// Slight rounding only — keeps the brutalist sharp feel while avoiding
+  /// jagged single-pixel corners at small sizes.
+  static const double card = 4;
+  static const double pill = 6;
+  static const double inputField = 4;
+}
+
+/// Neo-brutalist shadow/border atoms reused by widgets.
+class NbStyles {
+  NbStyles._();
+
+  static const double borderWidth = 2.5;
+  static const Offset shadowOffset = Offset(4, 4);
+  static const Offset shadowOffsetSmall = Offset(3, 3);
+  static const Color shadowColor = Colors.black;
+
+  static const BorderSide blackBorder =
+      BorderSide(color: AppColors.border, width: borderWidth);
+
+  static BoxDecoration boxedCard({
+    Color fill = AppColors.surface,
+    double radius = AppRadii.card,
+    Offset shadowOffset = NbStyles.shadowOffset,
+    Color borderColor = AppColors.border,
+  }) {
+    return BoxDecoration(
+      color: fill,
+      borderRadius: BorderRadius.circular(radius),
+      border: Border.all(color: borderColor, width: borderWidth),
+      boxShadow: [
+        BoxShadow(
+          color: shadowColor,
+          offset: shadowOffset,
+          blurRadius: 0,
+          spreadRadius: 0,
+        ),
+      ],
+    );
+  }
 }
 
 class AppTextStyles {
@@ -36,37 +76,49 @@ class AppTextStyles {
 
   static const TextStyle largeTitle = TextStyle(
     color: AppColors.onSurface,
-    fontSize: 34,
-    fontWeight: FontWeight.w700,
-    letterSpacing: 0.4,
+    fontSize: 32,
+    fontWeight: FontWeight.w900,
+    letterSpacing: -0.5,
+    height: 1.05,
   );
 
   static const TextStyle title = TextStyle(
     color: AppColors.onSurface,
     fontSize: 22,
-    fontWeight: FontWeight.w600,
+    fontWeight: FontWeight.w800,
+    letterSpacing: -0.2,
   );
 
   static const TextStyle body = TextStyle(
     color: AppColors.onSurface,
-    fontSize: 17,
+    fontSize: 16,
+    fontWeight: FontWeight.w600,
   );
 
   static const TextStyle subhead = TextStyle(
     color: AppColors.onSurface,
-    fontSize: 15,
+    fontSize: 14,
+    fontWeight: FontWeight.w600,
   );
 
   static const TextStyle footnote = TextStyle(
     color: AppColors.onSurfaceMuted,
     fontSize: 13,
+    fontWeight: FontWeight.w500,
   );
 
   static const TextStyle sectionHeader = TextStyle(
-    color: AppColors.groupedHeader,
-    fontSize: 13,
-    fontWeight: FontWeight.w500,
-    letterSpacing: 0.4,
+    color: AppColors.onSurface,
+    fontSize: 12,
+    fontWeight: FontWeight.w900,
+    letterSpacing: 1.2,
+  );
+
+  static const TextStyle button = TextStyle(
+    color: AppColors.onSurface,
+    fontSize: 16,
+    fontWeight: FontWeight.w800,
+    letterSpacing: 0.2,
   );
 }
 
@@ -74,11 +126,11 @@ ThemeData buildAppTheme() {
   const scheme = ColorScheme(
     brightness: Brightness.light,
     primary: AppColors.primary,
-    onPrimary: Colors.white,
-    secondary: AppColors.primary,
-    onSecondary: Colors.white,
+    onPrimary: AppColors.onSurface,
+    secondary: AppColors.secondary,
+    onSecondary: AppColors.onSurface,
     error: AppColors.destructive,
-    onError: Colors.white,
+    onError: AppColors.onSurface,
     surface: AppColors.surface,
     onSurface: AppColors.onSurface,
     surfaceContainerHighest: AppColors.surfaceVariant,
@@ -91,7 +143,7 @@ ThemeData buildAppTheme() {
     colorScheme: scheme,
     scaffoldBackgroundColor: AppColors.background,
     canvasColor: AppColors.background,
-    dividerColor: AppColors.divider,
+    dividerColor: AppColors.border,
     appBarTheme: const AppBarTheme(
       backgroundColor: AppColors.background,
       foregroundColor: AppColors.onSurface,
@@ -105,54 +157,48 @@ ThemeData buildAppTheme() {
       bodyLarge: AppTextStyles.body,
       bodyMedium: AppTextStyles.subhead,
       bodySmall: AppTextStyles.footnote,
+      labelLarge: AppTextStyles.button,
     ),
-    iconTheme: const IconThemeData(color: AppColors.primary),
-    cupertinoOverrideTheme: const CupertinoThemeData(
-      brightness: Brightness.light,
-      primaryColor: AppColors.primary,
-      scaffoldBackgroundColor: AppColors.background,
-      barBackgroundColor: AppColors.background,
-      textTheme: CupertinoTextThemeData(
-        primaryColor: AppColors.primary,
-      ),
-    ),
+    iconTheme: const IconThemeData(color: AppColors.onSurface),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: AppColors.surface,
       contentPadding:
           const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      hintStyle: const TextStyle(color: AppColors.onSurfaceFaint),
-      labelStyle: const TextStyle(color: AppColors.onSurfaceMuted),
+      hintStyle: const TextStyle(
+          color: AppColors.onSurfaceFaint, fontWeight: FontWeight.w600),
+      labelStyle: const TextStyle(
+          color: AppColors.onSurfaceMuted, fontWeight: FontWeight.w700),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadii.inputField),
-        borderSide: BorderSide.none,
+        borderSide: NbStyles.blackBorder,
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadii.inputField),
-        borderSide: BorderSide.none,
+        borderSide: NbStyles.blackBorder,
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadii.inputField),
-        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+        borderSide: const BorderSide(color: AppColors.primary, width: 3),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppRadii.inputField),
+        borderSide: const BorderSide(color: AppColors.destructive, width: 3),
       ),
     ),
     dialogTheme: const DialogThemeData(
       backgroundColor: AppColors.surface,
       surfaceTintColor: Colors.transparent,
-    ),
-    switchTheme: SwitchThemeData(
-      thumbColor: WidgetStateProperty.resolveWith(
-          (states) => Colors.white),
-      trackColor: WidgetStateProperty.resolveWith(
-        (states) => states.contains(WidgetState.selected)
-            ? AppColors.success
-            : AppColors.surfaceVariant,
+      shape: RoundedRectangleBorder(
+        side: BorderSide(color: AppColors.border, width: NbStyles.borderWidth),
+        borderRadius: BorderRadius.all(Radius.circular(AppRadii.card)),
       ),
-      trackOutlineColor:
-          const WidgetStatePropertyAll(Colors.transparent),
     ),
     textButtonTheme: TextButtonThemeData(
-      style: TextButton.styleFrom(foregroundColor: AppColors.primary),
+      style: TextButton.styleFrom(
+        foregroundColor: AppColors.onSurface,
+        textStyle: AppTextStyles.button,
+      ),
     ),
   );
 }
