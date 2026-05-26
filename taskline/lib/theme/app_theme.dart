@@ -25,25 +25,25 @@ class _LightPalette {
 }
 
 class _DarkPalette {
-  // Warm near-black background so the cream/yellow brand still feels at home.
-  static const Color background = Color(0xFF14140E);
-  static const Color surface = Color(0xFF1F1F17);
-  // Subtly tinted darker yellow for the "secondary" surface (matches the
-  // light theme's light-yellow tint role).
-  static const Color surfaceVariant = Color(0xFF3A2F00);
-  // Off-white border replaces pure black so cards still read as outlined.
-  static const Color border = Color(0xFFF5F5F0);
-  static const Color primary = Color(0xFFFFD700); // yellow stays — brand
-  static const Color primaryDark = Color(0xFFE6B800);
+  // Pure black + white + yellow — full-contrast brutalist palette.
+  static const Color background = Color(0xFF000000);
+  static const Color surface = Color(0xFF1A1A1A);
+  static const Color surfaceVariant = Color(0xFF2A2A2A);
+  // Pure white border so cards punch out hard against the black bg.
+  static const Color border = Color(0xFFFFFFFF);
+  // Muted gold replaces the light theme's bright yellow — same hue family
+  // but lower luminance so it doesn't burn against a true-black bg.
+  static const Color primary = Color(0xFFC9A227);
+  static const Color primaryDark = Color(0xFFA8861E);
   static const Color secondary = Color(0xFFA7F432);
   static const Color destructive = Color(0xFFFF6B6B);
   static const Color success = Color(0xFFA7F432);
   static const Color warning = Color(0xFFFF9F1C);
-  static const Color onSurface = Color(0xFFF5F5F0);
-  static const Color onSurfaceMuted = Color(0xFFB5B5B0);
-  static const Color onSurfaceFaint = Color(0xFF808076);
-  // Shadows in dark mode use the off-white so the hard offset stays visible.
-  static const Color shadow = Color(0xFFF5F5F0);
+  static const Color onSurface = Color(0xFFFFFFFF);
+  static const Color onSurfaceMuted = Color(0xFFB5B5B5);
+  static const Color onSurfaceFaint = Color(0xFF808080);
+  // White shadows on black so the hard offset still reads.
+  static const Color shadow = Color(0xFFFFFFFF);
 }
 
 /// Neo-brutalist palette wrapper. Static getters resolve to the light or
