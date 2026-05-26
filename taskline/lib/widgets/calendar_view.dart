@@ -10,6 +10,15 @@ import 'nb.dart';
 
 enum CalendarViewMode { year, month, week }
 
+/// A single occurrence of a task. For non-recurring tasks this matches
+/// `task.deadline`; for recurring tasks the calendar generates one entry per
+/// occurrence date within the visible window.
+class _TaskOccurrence {
+  const _TaskOccurrence(this.task, this.date);
+  final Task task;
+  final DateTime date; // UTC
+}
+
 /// Calendar view embedded in HomeScreen's Calendar tab. Supports three zoom
 /// levels — Year / Month / Week — switchable via the segmented control at
 /// the top. The task list below reflects the visible window: a selected day
@@ -41,9 +50,16 @@ class _CalendarViewState extends ConsumerState<CalendarView> {
     });
   }
 
-  bool _taskIsIn(Task t, DateTime start, DateTime end) {
-    final d = t.deadline.toLocal();
-    return !d.isBefore(start) && d.isBefore(end);
+  List<_TaskOccurrence> _occurrencesIn(
+      List<Task> tasks, DateTime start, DateTime end) {
+    final out = <_TaskOccurrence>[];
+    for (final t in tasks) {
+      for (final date in t.occurrencesIn(start, end)) {
+        out.add(_TaskOccurrence(t, date));
+      }
+    }
+    out.sort((a, b) => a.date.compareTo(b.date));
+    return out;
   }
 
   ({DateTime start, DateTime end, String header}) _visibleWindow() {
@@ -76,16 +92,14 @@ class _CalendarViewState extends ConsumerState<CalendarView> {
     }
   }
 
-  List<Task> _tasksForList(List<Task> all) {
+  List<_TaskOccurrence> _occurrencesForList(List<Task> all) {
     if (_selectedDay != null && _mode != CalendarViewMode.year) {
       final start = _selectedDay!;
       final end = start.add(const Duration(days: 1));
-      return all.where((t) => _taskIsIn(t, start, end)).toList()
-        ..sort((a, b) => a.deadline.compareTo(b.deadline));
+      return _occurrencesIn(all, start, end);
     }
     final w = _visibleWindow();
-    return all.where((t) => _taskIsIn(t, w.start, w.end)).toList()
-      ..sort((a, b) => a.deadline.compareTo(b.deadline));
+    return _occurrencesIn(all, w.start, w.end);
   }
 
   String _listHeader() {
@@ -100,7 +114,7 @@ class _CalendarViewState extends ConsumerState<CalendarView> {
     final tasksAsync = ref.watch(tasksProvider);
 
     return tasksAsync.when(
-      loading: () => const Center(
+      loading: () => Center(
           child: CircularProgressIndicator(color: AppColors.primary)),
       error: (err, _) => Center(
         child: Text('Error: $err',
@@ -108,7 +122,7 @@ class _CalendarViewState extends ConsumerState<CalendarView> {
                 AppTextStyles.body.copyWith(color: AppColors.destructive)),
       ),
       data: (allTasks) {
-        final tasksForList = _tasksForList(allTasks);
+        final occurrences = _occurrencesForList(allTasks);
 
         return ListView(
           padding: const EdgeInsets.fromLTRB(20, 4, 20, 110),
@@ -153,8 +167,6 @@ class _CalendarViewState extends ConsumerState<CalendarView> {
                     },
                     onPageChanged: (focused) => setState(() {
                       _focusedDay = focused;
-                      // Navigating to a different month/week — drop the
-                      // selection so the list reflects the new window.
                       _selectedDay = null;
                     }),
                   ),
@@ -171,8 +183,6 @@ class _CalendarViewState extends ConsumerState<CalendarView> {
                     },
                     onPageChanged: (focused) => setState(() {
                       _focusedDay = focused;
-                      // Navigating to a different month/week — drop the
-                      // selection so the list reflects the new window.
                       _selectedDay = null;
                     }),
                   ),
@@ -183,7 +193,7 @@ class _CalendarViewState extends ConsumerState<CalendarView> {
               padding: const EdgeInsets.only(left: 4, bottom: 8),
               child: Text(_listHeader(), style: AppTextStyles.sectionHeader),
             ),
-            if (tasksForList.isEmpty)
+            if (occurrences.isEmpty)
               NbCard(
                 padding: const EdgeInsets.symmetric(vertical: 24),
                 color: AppColors.surfaceVariant,
@@ -194,12 +204,13 @@ class _CalendarViewState extends ConsumerState<CalendarView> {
                 ),
               )
             else
-              for (var i = 0; i < tasksForList.length; i++) ...[
+              for (var i = 0; i < occurrences.length; i++) ...[
                 CalendarTaskTile(
-                  task: tasksForList[i],
-                  onTap: () => widget.onTaskTap(tasksForList[i]),
+                  task: occurrences[i].task,
+                  occurrenceDate: occurrences[i].date,
+                  onTap: () => widget.onTaskTap(occurrences[i].task),
                 ),
-                if (i != tasksForList.length - 1)
+                if (i != occurrences.length - 1)
                   const SizedBox(height: 12),
               ],
           ],
@@ -228,11 +239,7 @@ class _BrutalistCalendar extends StatelessWidget {
   final void Function(DateTime focused) onPageChanged;
 
   List<Task> _eventsForDay(DateTime day) {
-    final target = DateTime(day.year, day.month, day.day);
-    return allTasks.where((t) {
-      final d = t.deadline.toLocal();
-      return DateTime(d.year, d.month, d.day) == target;
-    }).toList();
+    return allTasks.where((t) => t.occursOn(day)).toList();
   }
 
   @override
@@ -259,9 +266,9 @@ class _BrutalistCalendar extends StatelessWidget {
             ? 'WEEK OF ${DateFormat('MMM d').format(date).toUpperCase()}'
             : DateFormat('MMMM yyyy').format(date).toUpperCase(),
         titleTextStyle: AppTextStyles.title,
-        leftChevronIcon: const Icon(Icons.chevron_left,
+        leftChevronIcon: Icon(Icons.chevron_left,
             color: AppColors.onSurface, size: 28),
-        rightChevronIcon: const Icon(Icons.chevron_right,
+        rightChevronIcon: Icon(Icons.chevron_right,
             color: AppColors.onSurface, size: 28),
         leftChevronMargin: EdgeInsets.zero,
         rightChevronMargin: EdgeInsets.zero,
@@ -302,13 +309,25 @@ class _BrutalistCalendar extends StatelessWidget {
         ),
         selectedTextStyle:
             AppTextStyles.body.copyWith(color: AppColors.onSurface),
-        markerDecoration: const BoxDecoration(
-          color: AppColors.border,
-          shape: BoxShape.circle,
-        ),
-        markersMaxCount: 3,
-        markerSize: 5,
-        markerMargin: const EdgeInsets.symmetric(horizontal: 1.5),
+      ),
+      calendarBuilders: CalendarBuilders<Task>(
+        // Replace the bottom dot with a short underline below the day
+        // number — clearer than a dot at a glance and stays clear of the
+        // selection/today borders.
+        markerBuilder: (context, day, events) {
+          if (events.isEmpty) return null;
+          return Align(
+            alignment: Alignment.bottomCenter,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Container(
+                width: 16,
+                height: 2.5,
+                color: AppColors.border,
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -329,10 +348,13 @@ class _YearGrid extends StatelessWidget {
   final void Function(int year, int month) onMonthTap;
 
   int _taskCountForMonth(int year, int month) {
-    return allTasks.where((t) {
-      final d = t.deadline.toLocal();
-      return d.year == year && d.month == month;
-    }).length;
+    final start = DateTime(year, month);
+    final end = DateTime(year, month + 1);
+    var count = 0;
+    for (final t in allTasks) {
+      count += t.occurrencesIn(start, end).length;
+    }
+    return count;
   }
 
   @override
@@ -346,7 +368,7 @@ class _YearGrid extends StatelessWidget {
           child: Row(
             children: [
               IconButton(
-                icon: const Icon(Icons.chevron_left,
+                icon: Icon(Icons.chevron_left,
                     color: AppColors.onSurface, size: 28),
                 onPressed: () => onYearChange(focusedYear - 1),
               ),
@@ -356,7 +378,7 @@ class _YearGrid extends StatelessWidget {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.chevron_right,
+                icon: Icon(Icons.chevron_right,
                     color: AppColors.onSurface, size: 28),
                 onPressed: () => onYearChange(focusedYear + 1),
               ),
@@ -462,16 +484,21 @@ class CalendarTaskTile extends ConsumerWidget {
     super.key,
     required this.task,
     required this.onTap,
+    this.occurrenceDate,
   });
 
   final Task task;
   final VoidCallback onTap;
+  // For recurring tasks the calendar passes the specific occurrence date so
+  // the countdown reflects "DUE IN X" relative to that occurrence, not the
+  // original deadline. Falls back to the task's deadline when omitted.
+  final DateTime? occurrenceDate;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final localDeadline = task.deadline.toLocal();
-    final countdown = formatDueIn(localDeadline);
-    final overdue = localDeadline.isBefore(DateTime.now()) && !task.isDone;
+    final localDate = (occurrenceDate ?? task.deadline).toLocal();
+    final countdown = formatDueIn(localDate);
+    final overdue = localDate.isBefore(DateTime.now()) && !task.isDone;
 
     return GestureDetector(
       onTap: onTap,

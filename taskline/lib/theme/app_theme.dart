@@ -1,30 +1,90 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-/// Neo-brutalist palette: cream background, white cards with thick black
-/// borders, bright yellow primary, hard offset shadows.
-class AppColors {
-  AppColors._();
+/// Global brightness used by [AppColors] / [AppTextStyles] / [NbStyles] to
+/// resolve theme-dependent values. Updated from the settings screen, listened
+/// to by `TasklineApp` to rebuild the tree.
+final ValueNotifier<Brightness> appBrightness =
+    ValueNotifier<Brightness>(Brightness.light);
 
+class _LightPalette {
   static const Color background = Color(0xFFFEFCE8); // cream
   static const Color surface = Color(0xFFFFFFFF);
   static const Color surfaceVariant = Color(0xFFFFF7B2); // light yellow tint
   static const Color border = Color(0xFF000000);
-
   static const Color primary = Color(0xFFFFD700); // signature yellow
   static const Color primaryDark = Color(0xFFE6B800);
   static const Color secondary = Color(0xFFA7F432); // lime accent
   static const Color destructive = Color(0xFFFF6B6B);
   static const Color success = Color(0xFFA7F432);
   static const Color warning = Color(0xFFFF9F1C);
-
   static const Color onSurface = Color(0xFF000000);
   static const Color onSurfaceMuted = Color(0xFF3F3F46);
   static const Color onSurfaceFaint = Color(0xFF71717A);
-  static const Color groupedHeader = Color(0xFF000000);
+  static const Color shadow = Color(0xFF000000);
+}
+
+class _DarkPalette {
+  // Warm near-black background so the cream/yellow brand still feels at home.
+  static const Color background = Color(0xFF14140E);
+  static const Color surface = Color(0xFF1F1F17);
+  // Subtly tinted darker yellow for the "secondary" surface (matches the
+  // light theme's light-yellow tint role).
+  static const Color surfaceVariant = Color(0xFF3A2F00);
+  // Off-white border replaces pure black so cards still read as outlined.
+  static const Color border = Color(0xFFF5F5F0);
+  static const Color primary = Color(0xFFFFD700); // yellow stays — brand
+  static const Color primaryDark = Color(0xFFE6B800);
+  static const Color secondary = Color(0xFFA7F432);
+  static const Color destructive = Color(0xFFFF6B6B);
+  static const Color success = Color(0xFFA7F432);
+  static const Color warning = Color(0xFFFF9F1C);
+  static const Color onSurface = Color(0xFFF5F5F0);
+  static const Color onSurfaceMuted = Color(0xFFB5B5B0);
+  static const Color onSurfaceFaint = Color(0xFF808076);
+  // Shadows in dark mode use the off-white so the hard offset stays visible.
+  static const Color shadow = Color(0xFFF5F5F0);
+}
+
+/// Neo-brutalist palette wrapper. Static getters resolve to the light or
+/// dark palette depending on [appBrightness].
+class AppColors {
+  AppColors._();
+
+  static bool get _dark => appBrightness.value == Brightness.dark;
+
+  static Color get background =>
+      _dark ? _DarkPalette.background : _LightPalette.background;
+  static Color get surface =>
+      _dark ? _DarkPalette.surface : _LightPalette.surface;
+  static Color get surfaceVariant =>
+      _dark ? _DarkPalette.surfaceVariant : _LightPalette.surfaceVariant;
+  static Color get border =>
+      _dark ? _DarkPalette.border : _LightPalette.border;
+
+  static Color get primary =>
+      _dark ? _DarkPalette.primary : _LightPalette.primary;
+  static Color get primaryDark =>
+      _dark ? _DarkPalette.primaryDark : _LightPalette.primaryDark;
+  static Color get secondary =>
+      _dark ? _DarkPalette.secondary : _LightPalette.secondary;
+  static Color get destructive =>
+      _dark ? _DarkPalette.destructive : _LightPalette.destructive;
+  static Color get success =>
+      _dark ? _DarkPalette.success : _LightPalette.success;
+  static Color get warning =>
+      _dark ? _DarkPalette.warning : _LightPalette.warning;
+
+  static Color get onSurface =>
+      _dark ? _DarkPalette.onSurface : _LightPalette.onSurface;
+  static Color get onSurfaceMuted =>
+      _dark ? _DarkPalette.onSurfaceMuted : _LightPalette.onSurfaceMuted;
+  static Color get onSurfaceFaint =>
+      _dark ? _DarkPalette.onSurfaceFaint : _LightPalette.onSurfaceFaint;
+  static Color get groupedHeader => onSurface;
 
   // Backwards-compat alias used by some old call sites.
-  static const Color divider = Color(0xFF000000);
+  static Color get divider => border;
 }
 
 class AppRadii {
@@ -44,21 +104,26 @@ class NbStyles {
   static const double borderWidth = 2.5;
   static const Offset shadowOffset = Offset(4, 4);
   static const Offset shadowOffsetSmall = Offset(3, 3);
-  static const Color shadowColor = Colors.black;
 
-  static const BorderSide blackBorder =
+  static Color get shadowColor =>
+      appBrightness.value == Brightness.dark
+          ? _DarkPalette.shadow
+          : _LightPalette.shadow;
+
+  static BorderSide get blackBorder =>
       BorderSide(color: AppColors.border, width: borderWidth);
 
   static BoxDecoration boxedCard({
-    Color fill = AppColors.surface,
+    Color? fill,
     double radius = AppRadii.card,
     Offset shadowOffset = NbStyles.shadowOffset,
-    Color borderColor = AppColors.border,
+    Color? borderColor,
   }) {
     return BoxDecoration(
-      color: fill,
+      color: fill ?? AppColors.surface,
       borderRadius: BorderRadius.circular(radius),
-      border: Border.all(color: borderColor, width: borderWidth),
+      border:
+          Border.all(color: borderColor ?? AppColors.border, width: borderWidth),
       boxShadow: [
         BoxShadow(
           color: shadowColor,
@@ -74,61 +139,62 @@ class NbStyles {
 class AppTextStyles {
   AppTextStyles._();
 
-  static const TextStyle largeTitle = TextStyle(
-    color: AppColors.onSurface,
-    fontSize: 32,
-    fontWeight: FontWeight.w900,
-    letterSpacing: -0.5,
-    height: 1.05,
-  );
+  static TextStyle get largeTitle => TextStyle(
+        color: AppColors.onSurface,
+        fontSize: 32,
+        fontWeight: FontWeight.w900,
+        letterSpacing: -0.5,
+        height: 1.05,
+      );
 
-  static const TextStyle title = TextStyle(
-    color: AppColors.onSurface,
-    fontSize: 22,
-    fontWeight: FontWeight.w800,
-    letterSpacing: -0.2,
-  );
+  static TextStyle get title => TextStyle(
+        color: AppColors.onSurface,
+        fontSize: 22,
+        fontWeight: FontWeight.w800,
+        letterSpacing: -0.2,
+      );
 
-  static const TextStyle body = TextStyle(
-    color: AppColors.onSurface,
-    fontSize: 16,
-    fontWeight: FontWeight.w600,
-  );
+  static TextStyle get body => TextStyle(
+        color: AppColors.onSurface,
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+      );
 
-  static const TextStyle subhead = TextStyle(
-    color: AppColors.onSurface,
-    fontSize: 14,
-    fontWeight: FontWeight.w600,
-  );
+  static TextStyle get subhead => TextStyle(
+        color: AppColors.onSurface,
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+      );
 
-  static const TextStyle footnote = TextStyle(
-    color: AppColors.onSurfaceMuted,
-    fontSize: 13,
-    fontWeight: FontWeight.w500,
-  );
+  static TextStyle get footnote => TextStyle(
+        color: AppColors.onSurfaceMuted,
+        fontSize: 13,
+        fontWeight: FontWeight.w500,
+      );
 
-  static const TextStyle sectionHeader = TextStyle(
-    color: AppColors.onSurface,
-    fontSize: 12,
-    fontWeight: FontWeight.w900,
-    letterSpacing: 1.2,
-  );
+  static TextStyle get sectionHeader => TextStyle(
+        color: AppColors.onSurface,
+        fontSize: 12,
+        fontWeight: FontWeight.w900,
+        letterSpacing: 1.2,
+      );
 
-  static const TextStyle button = TextStyle(
-    color: AppColors.onSurface,
-    fontSize: 16,
-    fontWeight: FontWeight.w800,
-    letterSpacing: 0.2,
-  );
+  static TextStyle get button => TextStyle(
+        color: AppColors.onSurface,
+        fontSize: 16,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0.2,
+      );
 }
 
 ThemeData buildAppTheme() {
-  const scheme = ColorScheme(
-    brightness: Brightness.light,
+  final dark = appBrightness.value == Brightness.dark;
+  final scheme = ColorScheme(
+    brightness: dark ? Brightness.dark : Brightness.light,
     primary: AppColors.primary,
-    onPrimary: AppColors.onSurface,
+    onPrimary: _LightPalette.onSurface, // yellow needs black text either way
     secondary: AppColors.secondary,
-    onSecondary: AppColors.onSurface,
+    onSecondary: _LightPalette.onSurface,
     error: AppColors.destructive,
     onError: AppColors.onSurface,
     surface: AppColors.surface,
@@ -139,19 +205,20 @@ ThemeData buildAppTheme() {
 
   return ThemeData(
     useMaterial3: true,
-    brightness: Brightness.light,
+    brightness: dark ? Brightness.dark : Brightness.light,
     colorScheme: scheme,
     scaffoldBackgroundColor: AppColors.background,
     canvasColor: AppColors.background,
     dividerColor: AppColors.border,
-    appBarTheme: const AppBarTheme(
+    appBarTheme: AppBarTheme(
       backgroundColor: AppColors.background,
       foregroundColor: AppColors.onSurface,
       elevation: 0,
       centerTitle: true,
-      systemOverlayStyle: SystemUiOverlayStyle.dark,
+      systemOverlayStyle:
+          dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
     ),
-    textTheme: const TextTheme(
+    textTheme: TextTheme(
       titleLarge: AppTextStyles.largeTitle,
       titleMedium: AppTextStyles.title,
       bodyLarge: AppTextStyles.body,
@@ -159,15 +226,15 @@ ThemeData buildAppTheme() {
       bodySmall: AppTextStyles.footnote,
       labelLarge: AppTextStyles.button,
     ),
-    iconTheme: const IconThemeData(color: AppColors.onSurface),
+    iconTheme: IconThemeData(color: AppColors.onSurface),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: AppColors.surface,
       contentPadding:
           const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      hintStyle: const TextStyle(
+      hintStyle: TextStyle(
           color: AppColors.onSurfaceFaint, fontWeight: FontWeight.w600),
-      labelStyle: const TextStyle(
+      labelStyle: TextStyle(
           color: AppColors.onSurfaceMuted, fontWeight: FontWeight.w700),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadii.inputField),
@@ -179,19 +246,19 @@ ThemeData buildAppTheme() {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadii.inputField),
-        borderSide: const BorderSide(color: AppColors.primary, width: 3),
+        borderSide: BorderSide(color: AppColors.primary, width: 3),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadii.inputField),
-        borderSide: const BorderSide(color: AppColors.destructive, width: 3),
+        borderSide: BorderSide(color: AppColors.destructive, width: 3),
       ),
     ),
-    dialogTheme: const DialogThemeData(
+    dialogTheme: DialogThemeData(
       backgroundColor: AppColors.surface,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
         side: BorderSide(color: AppColors.border, width: NbStyles.borderWidth),
-        borderRadius: BorderRadius.all(Radius.circular(AppRadii.card)),
+        borderRadius: const BorderRadius.all(Radius.circular(AppRadii.card)),
       ),
     ),
     textButtonTheme: TextButtonThemeData(

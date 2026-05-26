@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:launch_at_startup/launch_at_startup.dart';
 import 'package:window_manager/window_manager.dart';
 
+import 'models/app_settings.dart';
+import 'providers/settings_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/task_edit_screen.dart';
 import 'services/notification_service.dart';
@@ -57,17 +59,36 @@ void _openNewTaskFromTray() {
   nav.push(MaterialPageRoute(builder: (_) => const TaskEditScreen()));
 }
 
-class TasklineApp extends StatelessWidget {
+class TasklineApp extends ConsumerWidget {
   const TasklineApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Taskline',
-      debugShowCheckedModeBanner: false,
-      navigatorKey: rootNavigatorKey,
-      theme: buildAppTheme(),
-      home: const HomeScreen(),
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Sync the global AppColors brightness from the saved theme mode setting.
+    final settings = ref.watch(settingsProvider).value ?? const AppSettings();
+    final desired = settings.themeMode == ThemeModePref.dark
+        ? Brightness.dark
+        : Brightness.light;
+    if (appBrightness.value != desired) {
+      // Defer so we don't update during build.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        appBrightness.value = desired;
+      });
+    }
+
+    // Rebuild whenever the brightness notifier changes (the post-frame
+    // callback above and the settings update both flow through here).
+    return ValueListenableBuilder<Brightness>(
+      valueListenable: appBrightness,
+      builder: (context, _, _) {
+        return MaterialApp(
+          title: 'Taskline',
+          debugShowCheckedModeBanner: false,
+          navigatorKey: rootNavigatorKey,
+          theme: buildAppTheme(),
+          home: const HomeScreen(),
+        );
+      },
     );
   }
 }

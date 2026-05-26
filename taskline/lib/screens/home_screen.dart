@@ -82,6 +82,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     onChanged: (v) => setState(() => _filter = v),
                   ),
                 ),
+                Container(
+                  height: NbStyles.borderWidth,
+                  color: AppColors.border,
+                ),
+                const SizedBox(height: 16),
                 Expanded(
                   child: _filter == TaskFilter.calendar
                       ? CalendarView(onTaskTap: _openTaskEditor)
@@ -165,7 +170,7 @@ class _EmptyState extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.inbox_outlined,
+          Icon(Icons.inbox_outlined,
               size: 72, color: AppColors.onSurfaceFaint),
           const SizedBox(height: 16),
           Text('NO TASKS', style: AppTextStyles.title),

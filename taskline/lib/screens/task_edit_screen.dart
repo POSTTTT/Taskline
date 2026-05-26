@@ -26,6 +26,7 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
   late final TextEditingController _descriptionController;
   late DateTime _deadline;
   late Recurrence _recurrence;
+  DateTime? _recurrenceEndDate;
   bool _saving = false;
 
   bool get _isEditing => widget.task != null;
@@ -39,6 +40,24 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
         TextEditingController(text: existing?.description ?? '');
     _deadline = existing?.deadline.toLocal() ?? DateTime.now();
     _recurrence = existing?.recurrence ?? Recurrence.none;
+    _recurrenceEndDate = existing?.recurrenceEndDate?.toLocal();
+  }
+
+  Future<void> _pickRecurrenceEndDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _recurrenceEndDate ?? _deadline,
+      firstDate: _deadline,
+      lastDate: DateTime.now().add(const Duration(days: 365 * 10)),
+      builder: (context, child) => _brutalistPickerTheme(context, child),
+    );
+    if (picked == null) return;
+    setState(() => _recurrenceEndDate =
+        DateTime(picked.year, picked.month, picked.day, 23, 59, 59));
+  }
+
+  void _clearRecurrenceEndDate() {
+    setState(() => _recurrenceEndDate = null);
   }
 
   @override
@@ -67,28 +86,33 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
   /// theme — yellow selection chip, black text, bold weights, sharp corners.
   Widget _brutalistPickerTheme(BuildContext context, Widget? child) {
     final base = Theme.of(context);
+    final dark = appBrightness.value == Brightness.dark;
     return Theme(
       data: base.copyWith(
-        colorScheme: const ColorScheme.light(
+        colorScheme: ColorScheme(
+          brightness: dark ? Brightness.dark : Brightness.light,
           primary: AppColors.primary,
-          onPrimary: AppColors.onSurface,
+          onPrimary: const Color(0xFF000000),
           surface: AppColors.surface,
           onSurface: AppColors.onSurface,
           secondary: AppColors.primary,
-          onSecondary: AppColors.onSurface,
+          onSecondary: const Color(0xFF000000),
+          error: AppColors.destructive,
+          onError: AppColors.onSurface,
         ),
-        dialogTheme: const DialogThemeData(
+        dialogTheme: DialogThemeData(
           backgroundColor: AppColors.surface,
           shape: RoundedRectangleBorder(
             side: BorderSide(
                 color: AppColors.border, width: NbStyles.borderWidth),
-            borderRadius: BorderRadius.all(Radius.circular(AppRadii.card)),
+            borderRadius:
+                const BorderRadius.all(Radius.circular(AppRadii.card)),
           ),
         ),
         datePickerTheme: DatePickerThemeData(
           backgroundColor: AppColors.surface,
           headerBackgroundColor: AppColors.primary,
-          headerForegroundColor: AppColors.onSurface,
+          headerForegroundColor: const Color(0xFF000000),
           headerHeadlineStyle: AppTextStyles.title,
           headerHelpStyle: AppTextStyles.sectionHeader,
           weekdayStyle: AppTextStyles.footnote
@@ -97,15 +121,15 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
           dayForegroundColor: WidgetStatePropertyAll(AppColors.onSurface),
           dayBackgroundColor: const WidgetStatePropertyAll(Colors.transparent),
           todayBackgroundColor: const WidgetStatePropertyAll(Colors.transparent),
-          todayForegroundColor: const WidgetStatePropertyAll(AppColors.onSurface),
-          todayBorder: const BorderSide(
+          todayForegroundColor: WidgetStatePropertyAll(AppColors.onSurface),
+          todayBorder: BorderSide(
               color: AppColors.border, width: NbStyles.borderWidth),
           yearStyle: AppTextStyles.body,
-          shape: const RoundedRectangleBorder(
+          shape: RoundedRectangleBorder(
             side: BorderSide(
                 color: AppColors.border, width: NbStyles.borderWidth),
             borderRadius:
-                BorderRadius.all(Radius.circular(AppRadii.card)),
+                const BorderRadius.all(Radius.circular(AppRadii.card)),
           ),
           dayShape: const WidgetStatePropertyAll(
             RoundedRectangleBorder(
@@ -132,12 +156,14 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
     final picked = await showDialog<DateTime>(
       context: context,
       builder: (ctx) {
+        final dark = appBrightness.value == Brightness.dark;
         return Dialog(
           backgroundColor: AppColors.surface,
-          shape: const RoundedRectangleBorder(
+          shape: RoundedRectangleBorder(
             side: BorderSide(
                 color: AppColors.border, width: NbStyles.borderWidth),
-            borderRadius: BorderRadius.all(Radius.circular(AppRadii.card)),
+            borderRadius:
+                const BorderRadius.all(Radius.circular(AppRadii.card)),
           ),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 380),
@@ -160,8 +186,9 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
                       child: ScrollConfiguration(
                         behavior: const _DragWithMouseScrollBehavior(),
                         child: CupertinoTheme(
-                          data: const CupertinoThemeData(
-                            brightness: Brightness.light,
+                          data: CupertinoThemeData(
+                            brightness:
+                                dark ? Brightness.dark : Brightness.light,
                             primaryColor: AppColors.onSurface,
                             scaffoldBackgroundColor: AppColors.surface,
                             textTheme: CupertinoTextThemeData(
@@ -229,10 +256,11 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
       context: context,
       builder: (ctx) => Dialog(
         backgroundColor: AppColors.surface,
-        shape: const RoundedRectangleBorder(
+        shape: RoundedRectangleBorder(
           side: BorderSide(
               color: AppColors.border, width: NbStyles.borderWidth),
-          borderRadius: BorderRadius.all(Radius.circular(AppRadii.card)),
+          borderRadius:
+              const BorderRadius.all(Radius.circular(AppRadii.card)),
         ),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 360),
@@ -284,12 +312,16 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
     final notifier = ref.read(tasksProvider.notifier);
     final description = _descriptionController.text.trim();
 
+    final effectiveEnd =
+        _recurrence == Recurrence.none ? null : _recurrenceEndDate;
+
     if (_isEditing) {
       final updated = widget.task!.copyWith(
         title: _titleController.text.trim(),
         description: description.isEmpty ? null : description,
         deadline: _deadline,
         recurrence: _recurrence,
+        recurrenceEndDate: effectiveEnd,
       );
       await notifier.edit(updated);
     } else {
@@ -298,6 +330,7 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
         description: description.isEmpty ? null : description,
         deadline: _deadline,
         recurrence: _recurrence,
+        recurrenceEndDate: effectiveEnd,
       ));
     }
 
@@ -339,7 +372,12 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
+                Container(
+                  height: NbStyles.borderWidth,
+                  color: AppColors.border,
+                ),
+                const SizedBox(height: 16),
                 Expanded(
                   child: ListView(
                     children: [
@@ -422,6 +460,41 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
                         child: Text(
                             _recurrenceLabel(_recurrence).toUpperCase()),
                       ),
+                      if (_recurrence != Recurrence.none) ...[
+                        const SizedBox(height: 16),
+                        _Label('REPEAT UNTIL'),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: NbButton(
+                                onPressed: _pickRecurrenceEndDate,
+                                color: AppColors.surface,
+                                expand: true,
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 14),
+                                child: Text(
+                                  _recurrenceEndDate == null
+                                      ? 'NO END DATE'
+                                      : dateFormat
+                                          .format(_recurrenceEndDate!)
+                                          .toUpperCase(),
+                                ),
+                              ),
+                            ),
+                            if (_recurrenceEndDate != null) ...[
+                              const SizedBox(width: 12),
+                              NbIconButton(
+                                icon: Icons.close,
+                                size: 48,
+                                color: AppColors.surface,
+                                onPressed: _clearRecurrenceEndDate,
+                                tooltip: 'Clear end date',
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),

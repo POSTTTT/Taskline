@@ -100,7 +100,7 @@ class TaskTile extends ConsumerWidget {
                       ),
                       if (task.recurrence != Recurrence.none) ...[
                         const SizedBox(width: 8),
-                        const Icon(CupertinoIcons.repeat,
+                        Icon(CupertinoIcons.repeat,
                             size: 12, color: AppColors.onSurfaceMuted),
                         const SizedBox(width: 2),
                         Text(

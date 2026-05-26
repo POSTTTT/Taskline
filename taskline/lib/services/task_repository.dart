@@ -7,15 +7,24 @@ class TaskRepository {
 
   static const String _createTableSql = '''
     CREATE TABLE IF NOT EXISTS $tableName (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      title       TEXT NOT NULL,
-      description TEXT,
-      deadline    TEXT NOT NULL,
-      is_done     INTEGER NOT NULL DEFAULT 0,
-      recurrence  TEXT NOT NULL DEFAULT 'none',
-      created_at  TEXT NOT NULL
+      id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+      title                TEXT NOT NULL,
+      description          TEXT,
+      deadline             TEXT NOT NULL,
+      is_done              INTEGER NOT NULL DEFAULT 0,
+      recurrence           TEXT NOT NULL DEFAULT 'none',
+      recurrence_end_date  TEXT,
+      created_at           TEXT NOT NULL
     )
   ''';
+
+  static Future<void> migrate(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute(
+        'ALTER TABLE $tableName ADD COLUMN recurrence_end_date TEXT',
+      );
+    }
+  }
 
   final Database _db;
 

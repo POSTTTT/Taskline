@@ -11,28 +11,28 @@ class NbCard extends StatelessWidget {
   const NbCard({
     super.key,
     required this.child,
-    this.color = AppColors.surface,
+    this.color,
     this.padding,
     this.radius = AppRadii.card,
     this.shadowOffset = NbStyles.shadowOffset,
-    this.borderColor = AppColors.border,
+    this.borderColor,
   });
 
   final Widget child;
-  final Color color;
+  final Color? color;
   final EdgeInsetsGeometry? padding;
   final double radius;
   final Offset shadowOffset;
-  final Color borderColor;
+  final Color? borderColor;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: NbStyles.boxedCard(
-        fill: color,
+        fill: color ?? AppColors.surface,
         radius: radius,
         shadowOffset: shadowOffset,
-        borderColor: borderColor,
+        borderColor: borderColor ?? AppColors.border,
       ),
       padding: padding,
       child: child,
@@ -47,9 +47,9 @@ class NbButton extends StatefulWidget {
     super.key,
     required this.child,
     required this.onPressed,
-    this.color = AppColors.primary,
-    this.borderColor = AppColors.border,
-    this.foregroundColor = AppColors.onSurface,
+    this.color,
+    this.borderColor,
+    this.foregroundColor,
     this.padding = const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
     this.expand = false,
     this.shadowOffset = NbStyles.shadowOffset,
@@ -57,9 +57,9 @@ class NbButton extends StatefulWidget {
 
   final Widget child;
   final VoidCallback? onPressed;
-  final Color color;
-  final Color borderColor;
-  final Color foregroundColor;
+  final Color? color;
+  final Color? borderColor;
+  final Color? foregroundColor;
   final EdgeInsetsGeometry padding;
   final bool expand;
   final Offset shadowOffset;
@@ -80,6 +80,9 @@ class _NbButtonState extends State<NbButton> {
     final offset = _active ? Offset.zero : widget.shadowOffset;
     final translate =
         _active ? widget.shadowOffset : Offset.zero;
+    final fill = widget.color ?? AppColors.primary;
+    final border = widget.borderColor ?? AppColors.border;
+    final fg = widget.foregroundColor ?? AppColors.onSurface;
 
     return MouseRegion(
       cursor: _enabled
@@ -100,18 +103,16 @@ class _NbButtonState extends State<NbButton> {
           transform: Matrix4.translationValues(translate.dx, translate.dy, 0),
           decoration: BoxDecoration(
             color: _enabled
-                ? (_hovered && !_active
-                    ? _lighten(widget.color)
-                    : widget.color)
+                ? (_hovered && !_active ? _lighten(fill) : fill)
                 : Colors.grey.shade300,
             border: Border.all(
-              color: widget.borderColor,
+              color: border,
               width: NbStyles.borderWidth,
             ),
             borderRadius: BorderRadius.circular(AppRadii.card),
             boxShadow: [
               BoxShadow(
-                color: Colors.black,
+                color: NbStyles.shadowColor,
                 offset: offset,
                 blurRadius: 0,
               ),
@@ -120,10 +121,9 @@ class _NbButtonState extends State<NbButton> {
           padding: widget.padding,
           alignment: widget.expand ? Alignment.center : null,
           child: DefaultTextStyle.merge(
-            style: AppTextStyles.button
-                .copyWith(color: widget.foregroundColor),
+            style: AppTextStyles.button.copyWith(color: fg),
             child: IconTheme(
-              data: IconThemeData(color: widget.foregroundColor),
+              data: IconThemeData(color: fg),
               child: widget.child,
             ),
           ),
@@ -236,31 +236,33 @@ class NbIconButton extends StatelessWidget {
     super.key,
     required this.icon,
     required this.onPressed,
-    this.color = AppColors.surface,
-    this.iconColor = AppColors.onSurface,
+    this.color,
+    this.iconColor,
     this.size = 40,
     this.tooltip,
   });
 
   final IconData icon;
   final VoidCallback? onPressed;
-  final Color color;
-  final Color iconColor;
+  final Color? color;
+  final Color? iconColor;
   final double size;
   final String? tooltip;
 
   @override
   Widget build(BuildContext context) {
+    final fill = color ?? AppColors.surface;
+    final ic = iconColor ?? AppColors.onSurface;
     final btn = NbButton(
       onPressed: onPressed,
-      color: color,
-      foregroundColor: iconColor,
+      color: fill,
+      foregroundColor: ic,
       padding: EdgeInsets.zero,
       shadowOffset: NbStyles.shadowOffsetSmall,
       child: SizedBox(
         width: size,
         height: size,
-        child: Icon(icon, color: iconColor, size: size * 0.55),
+        child: Icon(icon, color: ic, size: size * 0.55),
       ),
     );
     if (tooltip != null) return Tooltip(message: tooltip!, child: btn);

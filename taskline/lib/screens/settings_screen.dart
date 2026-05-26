@@ -45,7 +45,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   Text('SETTINGS', style: AppTextStyles.title),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
+              Container(
+                height: NbStyles.borderWidth,
+                color: AppColors.border,
+              ),
+              const SizedBox(height: 16),
               Expanded(
                 child: ListView(
                   children: [
@@ -142,17 +147,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     NbCard(
                       child: NbValueRow(
                         label: 'Theme',
-                        value: 'Neo-brutalist',
-                        enabled: false,
-                        onTap: null,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Text(
-                        'More themes coming soon.',
-                        style: AppTextStyles.footnote,
+                        value: settings.themeMode.label,
+                        onTap: () => _chooseThemeMode(settings),
                       ),
                     ),
                   ],
@@ -189,6 +185,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
+  Future<void> _chooseThemeMode(AppSettings settings) async {
+    final picked = await _showChoiceDialog<ThemeModePref>(
+      title: 'THEME',
+      options: ThemeModePref.values,
+      labelOf: (v) => v.label,
+      current: settings.themeMode,
+    );
+    if (picked != null && picked != settings.themeMode) {
+      await _save(settings.copyWith(themeMode: picked));
+    }
+  }
+
   Future<T?> _showChoiceDialog<T>({
     required String title,
     required List<T> options,
@@ -199,10 +207,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       context: context,
       builder: (ctx) => Dialog(
         backgroundColor: AppColors.surface,
-        shape: const RoundedRectangleBorder(
+        shape: RoundedRectangleBorder(
           side: BorderSide(
               color: AppColors.border, width: NbStyles.borderWidth),
-          borderRadius: BorderRadius.all(Radius.circular(AppRadii.card)),
+          borderRadius:
+              const BorderRadius.all(Radius.circular(AppRadii.card)),
         ),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 360),
@@ -334,10 +343,11 @@ class _IntervalPickerDialogState extends State<_IntervalPickerDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
+      shape: RoundedRectangleBorder(
         side: BorderSide(
             color: AppColors.border, width: NbStyles.borderWidth),
-        borderRadius: BorderRadius.all(Radius.circular(AppRadii.card)),
+        borderRadius:
+            const BorderRadius.all(Radius.circular(AppRadii.card)),
       ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 380),
