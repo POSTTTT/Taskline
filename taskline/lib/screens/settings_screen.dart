@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,6 +18,9 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  static bool get _isDesktop =>
+      Platform.isWindows || Platform.isMacOS || Platform.isLinux;
+
   Future<void> _save(AppSettings next) async {
     await ref.read(settingsProvider.notifier).save(next);
     await ref.read(tasksProvider.notifier).resyncNotifications();
@@ -121,27 +126,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 24),
-                    _SectionHeader('GENERAL'),
-                    NbCard(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text('Launch at startup',
-                                  style: AppTextStyles.body),
-                            ),
-                            NbSwitch(
-                              value: settings.launchAtStartup,
-                              onChanged: (v) => _save(
-                                  settings.copyWith(launchAtStartup: v)),
-                            ),
-                          ],
+                    if (_isDesktop) ...[
+                      const SizedBox(height: 24),
+                      _SectionHeader('GENERAL'),
+                      NbCard(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text('Launch at startup',
+                                    style: AppTextStyles.body),
+                              ),
+                              NbSwitch(
+                                value: settings.launchAtStartup,
+                                onChanged: (v) => _save(
+                                    settings.copyWith(launchAtStartup: v)),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                     const SizedBox(height: 24),
                     _SectionHeader('APPEARANCE'),
                     NbCard(

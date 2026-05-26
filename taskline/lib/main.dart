@@ -20,16 +20,22 @@ final GlobalKey<NavigatorState> rootNavigatorKey =
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Guard against multiple instances. Subsequent launches signal this one
-  // over the socket and we surface the window via window_manager (which is
-  // what hid it in the first place, so the show is a real reversal).
-  if (!await SingleInstance.acquireOrForward(onActivate: _surfaceWindow)) {
-    return;
+  final isDesktop =
+      Platform.isWindows || Platform.isMacOS || Platform.isLinux;
+
+  if (isDesktop) {
+    // Guard against multiple instances. Subsequent launches signal this one
+    // over the socket and we surface the window via window_manager (which is
+    // what hid it in the first place, so the show is a real reversal). Mobile
+    // OSes already enforce single-instance at the system level.
+    if (!await SingleInstance.acquireOrForward(onActivate: _surfaceWindow)) {
+      return;
+    }
   }
 
   await NotificationService.instance.init();
 
-  if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+  if (isDesktop) {
     launchAtStartup.setup(
       appName: 'Taskline',
       appPath: Platform.resolvedExecutable,
