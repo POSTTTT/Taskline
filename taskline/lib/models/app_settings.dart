@@ -2,6 +2,12 @@ enum TimeFormatPref { hour12, hour24 }
 
 enum DateFormatPref { dmy, mdy, ymd }
 
+enum ThemeModePref { light, dark }
+
+extension ThemeModePrefX on ThemeModePref {
+  String get label => this == ThemeModePref.dark ? 'Dark' : 'Light';
+}
+
 enum ReminderUnit { minute, hour, day, week, month, year }
 
 extension ReminderUnitX on ReminderUnit {
@@ -124,6 +130,7 @@ extension DateFormatPrefX on DateFormatPref {
 class AppSettings {
   final TimeFormatPref timeFormat;
   final DateFormatPref dateFormat;
+  final ThemeModePref themeMode;
   final bool launchAtStartup;
   final ReminderInterval moreThan1Year;
   final ReminderInterval dueIn1Year;
@@ -135,6 +142,7 @@ class AppSettings {
   const AppSettings({
     this.timeFormat = TimeFormatPref.hour24,
     this.dateFormat = DateFormatPref.dmy,
+    this.themeMode = ThemeModePref.light,
     this.launchAtStartup = false,
     this.moreThan1Year =
         const ReminderInterval(count: 1, unit: ReminderUnit.year),
@@ -155,6 +163,7 @@ class AppSettings {
   AppSettings copyWith({
     TimeFormatPref? timeFormat,
     DateFormatPref? dateFormat,
+    ThemeModePref? themeMode,
     bool? launchAtStartup,
     ReminderInterval? moreThan1Year,
     ReminderInterval? dueIn1Year,
@@ -166,6 +175,7 @@ class AppSettings {
     return AppSettings(
       timeFormat: timeFormat ?? this.timeFormat,
       dateFormat: dateFormat ?? this.dateFormat,
+      themeMode: themeMode ?? this.themeMode,
       launchAtStartup: launchAtStartup ?? this.launchAtStartup,
       moreThan1Year: moreThan1Year ?? this.moreThan1Year,
       dueIn1Year: dueIn1Year ?? this.dueIn1Year,
@@ -179,6 +189,7 @@ class AppSettings {
   Map<String, Object?> toJson() => {
         'timeFormat': timeFormat.name,
         'dateFormat': dateFormat.name,
+        'themeMode': themeMode.name,
         'launchAtStartup': launchAtStartup,
         'moreThan1Year': moreThan1Year.toJson(),
         'dueIn1Year': dueIn1Year.toJson(),
@@ -211,6 +222,8 @@ class AppSettings {
           TimeFormatPref.values, json['timeFormat'], defaults.timeFormat),
       dateFormat: _enumFrom(
           DateFormatPref.values, json['dateFormat'], defaults.dateFormat),
+      themeMode: _enumFrom(
+          ThemeModePref.values, json['themeMode'], defaults.themeMode),
       launchAtStartup: json['launchAtStartup'] is bool
           ? json['launchAtStartup'] as bool
           : defaults.launchAtStartup,

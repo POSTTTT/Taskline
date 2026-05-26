@@ -1,84 +1,202 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-/// iOS-style light palette modeled after Apple Reminders / Things 3.
+/// Global brightness used by [AppColors] / [AppTextStyles] / [NbStyles] to
+/// resolve theme-dependent values. Updated from the settings screen, listened
+/// to by `TasklineApp` to rebuild the tree.
+final ValueNotifier<Brightness> appBrightness =
+    ValueNotifier<Brightness>(Brightness.light);
+
+class _LightPalette {
+  static const Color background = Color(0xFFFEFCE8); // cream
+  static const Color surface = Color(0xFFFFFFFF);
+  static const Color surfaceVariant = Color(0xFFFFF7B2); // light yellow tint
+  static const Color border = Color(0xFF000000);
+  static const Color primary = Color(0xFFFFD700); // signature yellow
+  static const Color primaryDark = Color(0xFFE6B800);
+  static const Color secondary = Color(0xFFA7F432); // lime accent
+  static const Color destructive = Color(0xFFFF6B6B);
+  static const Color success = Color(0xFFA7F432);
+  static const Color warning = Color(0xFFFF9F1C);
+  static const Color onSurface = Color(0xFF000000);
+  static const Color onSurfaceMuted = Color(0xFF3F3F46);
+  static const Color onSurfaceFaint = Color(0xFF71717A);
+  static const Color shadow = Color(0xFF000000);
+}
+
+class _DarkPalette {
+  // Pure black + white + yellow — full-contrast brutalist palette.
+  static const Color background = Color(0xFF000000);
+  static const Color surface = Color(0xFF1A1A1A);
+  static const Color surfaceVariant = Color(0xFF2A2A2A);
+  // Pure white border so cards punch out hard against the black bg.
+  static const Color border = Color(0xFFFFFFFF);
+  // Muted gold replaces the light theme's bright yellow — same hue family
+  // but lower luminance so it doesn't burn against a true-black bg.
+  static const Color primary = Color(0xFFC9A227);
+  static const Color primaryDark = Color(0xFFA8861E);
+  static const Color secondary = Color(0xFFA7F432);
+  static const Color destructive = Color(0xFFFF6B6B);
+  static const Color success = Color(0xFFA7F432);
+  static const Color warning = Color(0xFFFF9F1C);
+  static const Color onSurface = Color(0xFFFFFFFF);
+  static const Color onSurfaceMuted = Color(0xFFB5B5B5);
+  static const Color onSurfaceFaint = Color(0xFF808080);
+  // White shadows on black so the hard offset still reads.
+  static const Color shadow = Color(0xFFFFFFFF);
+}
+
+/// Neo-brutalist palette wrapper. Static getters resolve to the light or
+/// dark palette depending on [appBrightness].
 class AppColors {
   AppColors._();
 
-  static const Color background = Color(0xFFF2F2F7); // systemGroupedBackground
-  static const Color surface = Color(0xFFFFFFFF); // grouped section bg
-  static const Color surfaceVariant = Color(0xFFE5E5EA); // tertiary system fill
+  static bool get _dark => appBrightness.value == Brightness.dark;
 
-  static const Color primary = Color(0xFF007AFF); // systemBlue
-  static const Color destructive = Color(0xFFFF3B30); // systemRed
-  static const Color success = Color(0xFF34C759); // systemGreen
-  static const Color warning = Color(0xFFFF9500); // systemOrange
+  static Color get background =>
+      _dark ? _DarkPalette.background : _LightPalette.background;
+  static Color get surface =>
+      _dark ? _DarkPalette.surface : _LightPalette.surface;
+  static Color get surfaceVariant =>
+      _dark ? _DarkPalette.surfaceVariant : _LightPalette.surfaceVariant;
+  static Color get border =>
+      _dark ? _DarkPalette.border : _LightPalette.border;
 
-  static const Color onSurface = Color(0xFF000000); // label
-  static const Color onSurfaceMuted = Color(0x993C3C43); // secondaryLabel ~60%
-  static const Color onSurfaceFaint = Color(0x4D3C3C43); // tertiaryLabel ~30%
+  static Color get primary =>
+      _dark ? _DarkPalette.primary : _LightPalette.primary;
+  static Color get primaryDark =>
+      _dark ? _DarkPalette.primaryDark : _LightPalette.primaryDark;
+  static Color get secondary =>
+      _dark ? _DarkPalette.secondary : _LightPalette.secondary;
+  static Color get destructive =>
+      _dark ? _DarkPalette.destructive : _LightPalette.destructive;
+  static Color get success =>
+      _dark ? _DarkPalette.success : _LightPalette.success;
+  static Color get warning =>
+      _dark ? _DarkPalette.warning : _LightPalette.warning;
 
-  static const Color divider = Color(0x5C3C3C43); // separator ~36%
-  static const Color groupedHeader = Color(0xFF6C6C70); // header text
+  static Color get onSurface =>
+      _dark ? _DarkPalette.onSurface : _LightPalette.onSurface;
+  static Color get onSurfaceMuted =>
+      _dark ? _DarkPalette.onSurfaceMuted : _LightPalette.onSurfaceMuted;
+  static Color get onSurfaceFaint =>
+      _dark ? _DarkPalette.onSurfaceFaint : _LightPalette.onSurfaceFaint;
+  static Color get groupedHeader => onSurface;
+
+  // Backwards-compat alias used by some old call sites.
+  static Color get divider => border;
 }
 
 class AppRadii {
   AppRadii._();
 
-  static const double card = 10; // iOS grouped section radius
-  static const double pill = 22;
-  static const double inputField = 10;
+  /// Slight rounding only — keeps the brutalist sharp feel while avoiding
+  /// jagged single-pixel corners at small sizes.
+  static const double card = 4;
+  static const double pill = 6;
+  static const double inputField = 4;
+}
+
+/// Neo-brutalist shadow/border atoms reused by widgets.
+class NbStyles {
+  NbStyles._();
+
+  static const double borderWidth = 2.5;
+  static const Offset shadowOffset = Offset(4, 4);
+  static const Offset shadowOffsetSmall = Offset(3, 3);
+
+  static Color get shadowColor =>
+      appBrightness.value == Brightness.dark
+          ? _DarkPalette.shadow
+          : _LightPalette.shadow;
+
+  static BorderSide get blackBorder =>
+      BorderSide(color: AppColors.border, width: borderWidth);
+
+  static BoxDecoration boxedCard({
+    Color? fill,
+    double radius = AppRadii.card,
+    Offset shadowOffset = NbStyles.shadowOffset,
+    Color? borderColor,
+  }) {
+    return BoxDecoration(
+      color: fill ?? AppColors.surface,
+      borderRadius: BorderRadius.circular(radius),
+      border:
+          Border.all(color: borderColor ?? AppColors.border, width: borderWidth),
+      boxShadow: [
+        BoxShadow(
+          color: shadowColor,
+          offset: shadowOffset,
+          blurRadius: 0,
+          spreadRadius: 0,
+        ),
+      ],
+    );
+  }
 }
 
 class AppTextStyles {
   AppTextStyles._();
 
-  static const TextStyle largeTitle = TextStyle(
-    color: AppColors.onSurface,
-    fontSize: 34,
-    fontWeight: FontWeight.w700,
-    letterSpacing: 0.4,
-  );
+  static TextStyle get largeTitle => TextStyle(
+        color: AppColors.onSurface,
+        fontSize: 32,
+        fontWeight: FontWeight.w900,
+        letterSpacing: -0.5,
+        height: 1.05,
+      );
 
-  static const TextStyle title = TextStyle(
-    color: AppColors.onSurface,
-    fontSize: 22,
-    fontWeight: FontWeight.w600,
-  );
+  static TextStyle get title => TextStyle(
+        color: AppColors.onSurface,
+        fontSize: 22,
+        fontWeight: FontWeight.w800,
+        letterSpacing: -0.2,
+      );
 
-  static const TextStyle body = TextStyle(
-    color: AppColors.onSurface,
-    fontSize: 17,
-  );
+  static TextStyle get body => TextStyle(
+        color: AppColors.onSurface,
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+      );
 
-  static const TextStyle subhead = TextStyle(
-    color: AppColors.onSurface,
-    fontSize: 15,
-  );
+  static TextStyle get subhead => TextStyle(
+        color: AppColors.onSurface,
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+      );
 
-  static const TextStyle footnote = TextStyle(
-    color: AppColors.onSurfaceMuted,
-    fontSize: 13,
-  );
+  static TextStyle get footnote => TextStyle(
+        color: AppColors.onSurfaceMuted,
+        fontSize: 13,
+        fontWeight: FontWeight.w500,
+      );
 
-  static const TextStyle sectionHeader = TextStyle(
-    color: AppColors.groupedHeader,
-    fontSize: 13,
-    fontWeight: FontWeight.w500,
-    letterSpacing: 0.4,
-  );
+  static TextStyle get sectionHeader => TextStyle(
+        color: AppColors.onSurface,
+        fontSize: 12,
+        fontWeight: FontWeight.w900,
+        letterSpacing: 1.2,
+      );
+
+  static TextStyle get button => TextStyle(
+        color: AppColors.onSurface,
+        fontSize: 16,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0.2,
+      );
 }
 
 ThemeData buildAppTheme() {
-  const scheme = ColorScheme(
-    brightness: Brightness.light,
+  final dark = appBrightness.value == Brightness.dark;
+  final scheme = ColorScheme(
+    brightness: dark ? Brightness.dark : Brightness.light,
     primary: AppColors.primary,
-    onPrimary: Colors.white,
-    secondary: AppColors.primary,
-    onSecondary: Colors.white,
+    onPrimary: _LightPalette.onSurface, // yellow needs black text either way
+    secondary: AppColors.secondary,
+    onSecondary: _LightPalette.onSurface,
     error: AppColors.destructive,
-    onError: Colors.white,
+    onError: AppColors.onSurface,
     surface: AppColors.surface,
     onSurface: AppColors.onSurface,
     surfaceContainerHighest: AppColors.surfaceVariant,
@@ -87,72 +205,67 @@ ThemeData buildAppTheme() {
 
   return ThemeData(
     useMaterial3: true,
-    brightness: Brightness.light,
+    brightness: dark ? Brightness.dark : Brightness.light,
     colorScheme: scheme,
     scaffoldBackgroundColor: AppColors.background,
     canvasColor: AppColors.background,
-    dividerColor: AppColors.divider,
-    appBarTheme: const AppBarTheme(
+    dividerColor: AppColors.border,
+    appBarTheme: AppBarTheme(
       backgroundColor: AppColors.background,
       foregroundColor: AppColors.onSurface,
       elevation: 0,
       centerTitle: true,
-      systemOverlayStyle: SystemUiOverlayStyle.dark,
+      systemOverlayStyle:
+          dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
     ),
-    textTheme: const TextTheme(
+    textTheme: TextTheme(
       titleLarge: AppTextStyles.largeTitle,
       titleMedium: AppTextStyles.title,
       bodyLarge: AppTextStyles.body,
       bodyMedium: AppTextStyles.subhead,
       bodySmall: AppTextStyles.footnote,
+      labelLarge: AppTextStyles.button,
     ),
-    iconTheme: const IconThemeData(color: AppColors.primary),
-    cupertinoOverrideTheme: const CupertinoThemeData(
-      brightness: Brightness.light,
-      primaryColor: AppColors.primary,
-      scaffoldBackgroundColor: AppColors.background,
-      barBackgroundColor: AppColors.background,
-      textTheme: CupertinoTextThemeData(
-        primaryColor: AppColors.primary,
-      ),
-    ),
+    iconTheme: IconThemeData(color: AppColors.onSurface),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: AppColors.surface,
       contentPadding:
           const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      hintStyle: const TextStyle(color: AppColors.onSurfaceFaint),
-      labelStyle: const TextStyle(color: AppColors.onSurfaceMuted),
+      hintStyle: TextStyle(
+          color: AppColors.onSurfaceFaint, fontWeight: FontWeight.w600),
+      labelStyle: TextStyle(
+          color: AppColors.onSurfaceMuted, fontWeight: FontWeight.w700),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadii.inputField),
-        borderSide: BorderSide.none,
+        borderSide: NbStyles.blackBorder,
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadii.inputField),
-        borderSide: BorderSide.none,
+        borderSide: NbStyles.blackBorder,
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadii.inputField),
-        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+        borderSide: BorderSide(color: AppColors.primary, width: 3),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppRadii.inputField),
+        borderSide: BorderSide(color: AppColors.destructive, width: 3),
       ),
     ),
-    dialogTheme: const DialogThemeData(
+    dialogTheme: DialogThemeData(
       backgroundColor: AppColors.surface,
       surfaceTintColor: Colors.transparent,
-    ),
-    switchTheme: SwitchThemeData(
-      thumbColor: WidgetStateProperty.resolveWith(
-          (states) => Colors.white),
-      trackColor: WidgetStateProperty.resolveWith(
-        (states) => states.contains(WidgetState.selected)
-            ? AppColors.success
-            : AppColors.surfaceVariant,
+      shape: RoundedRectangleBorder(
+        side: BorderSide(color: AppColors.border, width: NbStyles.borderWidth),
+        borderRadius: const BorderRadius.all(Radius.circular(AppRadii.card)),
       ),
-      trackOutlineColor:
-          const WidgetStatePropertyAll(Colors.transparent),
     ),
     textButtonTheme: TextButtonThemeData(
-      style: TextButton.styleFrom(foregroundColor: AppColors.primary),
+      style: TextButton.styleFrom(
+        foregroundColor: AppColors.onSurface,
+        textStyle: AppTextStyles.button,
+      ),
     ),
   );
 }

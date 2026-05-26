@@ -9,6 +9,7 @@ import '../models/task.dart';
 import '../providers/providers.dart';
 import '../providers/settings_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/nb.dart';
 
 class TaskEditScreen extends ConsumerStatefulWidget {
   const TaskEditScreen({super.key, this.task});
@@ -25,6 +26,7 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
   late final TextEditingController _descriptionController;
   late DateTime _deadline;
   late Recurrence _recurrence;
+  DateTime? _recurrenceEndDate;
   bool _saving = false;
 
   bool get _isEditing => widget.task != null;
@@ -38,6 +40,24 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
         TextEditingController(text: existing?.description ?? '');
     _deadline = existing?.deadline.toLocal() ?? DateTime.now();
     _recurrence = existing?.recurrence ?? Recurrence.none;
+    _recurrenceEndDate = existing?.recurrenceEndDate?.toLocal();
+  }
+
+  Future<void> _pickRecurrenceEndDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _recurrenceEndDate ?? _deadline,
+      firstDate: _deadline,
+      lastDate: DateTime.now().add(const Duration(days: 365 * 10)),
+      builder: (context, child) => _brutalistPickerTheme(context, child),
+    );
+    if (picked == null) return;
+    setState(() => _recurrenceEndDate =
+        DateTime(picked.year, picked.month, picked.day, 23, 59, 59));
+  }
+
+  void _clearRecurrenceEndDate() {
+    setState(() => _recurrenceEndDate = null);
   }
 
   @override
@@ -53,72 +73,107 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
       initialDate: _deadline,
       firstDate: DateTime.now().subtract(const Duration(days: 1)),
       lastDate: DateTime.now().add(const Duration(days: 365 * 10)),
+      builder: (context, child) => _brutalistPickerTheme(context, child),
     );
     if (picked == null) return;
     setState(() {
-      _deadline = DateTime(
-        picked.year,
-        picked.month,
-        picked.day,
-        _deadline.hour,
-        _deadline.minute,
-      );
+      _deadline = DateTime(picked.year, picked.month, picked.day,
+          _deadline.hour, _deadline.minute);
     });
+  }
+
+  /// Re-skins the stock Material date picker so it matches the neo-brutalist
+  /// theme — yellow selection chip, black text, bold weights, sharp corners.
+  Widget _brutalistPickerTheme(BuildContext context, Widget? child) {
+    final base = Theme.of(context);
+    final dark = appBrightness.value == Brightness.dark;
+    return Theme(
+      data: base.copyWith(
+        colorScheme: ColorScheme(
+          brightness: dark ? Brightness.dark : Brightness.light,
+          primary: AppColors.primary,
+          onPrimary: const Color(0xFF000000),
+          surface: AppColors.surface,
+          onSurface: AppColors.onSurface,
+          secondary: AppColors.primary,
+          onSecondary: const Color(0xFF000000),
+          error: AppColors.destructive,
+          onError: AppColors.onSurface,
+        ),
+        dialogTheme: DialogThemeData(
+          backgroundColor: AppColors.surface,
+          shape: RoundedRectangleBorder(
+            side: BorderSide(
+                color: AppColors.border, width: NbStyles.borderWidth),
+            borderRadius:
+                const BorderRadius.all(Radius.circular(AppRadii.card)),
+          ),
+        ),
+        datePickerTheme: DatePickerThemeData(
+          backgroundColor: AppColors.surface,
+          headerBackgroundColor: AppColors.primary,
+          headerForegroundColor: const Color(0xFF000000),
+          headerHeadlineStyle: AppTextStyles.title,
+          headerHelpStyle: AppTextStyles.sectionHeader,
+          weekdayStyle: AppTextStyles.footnote
+              .copyWith(fontWeight: FontWeight.w800),
+          dayStyle: AppTextStyles.body,
+          dayForegroundColor: WidgetStatePropertyAll(AppColors.onSurface),
+          dayBackgroundColor: const WidgetStatePropertyAll(Colors.transparent),
+          todayBackgroundColor: const WidgetStatePropertyAll(Colors.transparent),
+          todayForegroundColor: WidgetStatePropertyAll(AppColors.onSurface),
+          todayBorder: BorderSide(
+              color: AppColors.border, width: NbStyles.borderWidth),
+          yearStyle: AppTextStyles.body,
+          shape: RoundedRectangleBorder(
+            side: BorderSide(
+                color: AppColors.border, width: NbStyles.borderWidth),
+            borderRadius:
+                const BorderRadius.all(Radius.circular(AppRadii.card)),
+          ),
+          dayShape: const WidgetStatePropertyAll(
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.all(Radius.circular(4)),
+            ),
+          ),
+          dividerColor: AppColors.border,
+        ),
+        textButtonTheme: TextButtonThemeData(
+          style: TextButton.styleFrom(
+            foregroundColor: AppColors.onSurface,
+            textStyle: AppTextStyles.button,
+          ),
+        ),
+      ),
+      child: child ?? const SizedBox.shrink(),
+    );
   }
 
   Future<void> _pickTime() async {
     final settings = ref.read(settingsProvider).value ?? const AppSettings();
     final use24h = settings.timeFormat == TimeFormatPref.hour24;
-
     var temp = _deadline;
     final picked = await showDialog<DateTime>(
       context: context,
       builder: (ctx) {
+        final dark = appBrightness.value == Brightness.dark;
         return Dialog(
           backgroundColor: AppColors.surface,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            side: BorderSide(
+                color: AppColors.border, width: NbStyles.borderWidth),
+            borderRadius:
+                const BorderRadius.all(Radius.circular(AppRadii.card)),
           ),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 360),
+            constraints: const BoxConstraints(maxWidth: 380),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Row(
-                    children: [
-                      CupertinoButton(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        onPressed: () => Navigator.of(ctx).pop(),
-                        child: const Text(
-                          'Cancel',
-                          style: TextStyle(color: AppColors.primary),
-                        ),
-                      ),
-                      const Spacer(),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 8),
-                        child: Text('Time',
-                            style: TextStyle(
-                              color: AppColors.onSurface,
-                              fontWeight: FontWeight.w600,
-                            )),
-                      ),
-                      const Spacer(),
-                      CupertinoButton(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        onPressed: () => Navigator.of(ctx).pop(temp),
-                        child: const Text(
-                          'Done',
-                          style: TextStyle(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                  Text('PICK TIME', style: AppTextStyles.title),
+                  const SizedBox(height: 8),
                   SizedBox(
                     height: 220,
                     child: Listener(
@@ -130,21 +185,61 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
                       },
                       child: ScrollConfiguration(
                         behavior: const _DragWithMouseScrollBehavior(),
-                        child: CupertinoDatePicker(
-                          mode: CupertinoDatePickerMode.time,
-                          use24hFormat: use24h,
-                          initialDateTime: _deadline,
-                          minuteInterval: 1,
-                          onDateTimeChanged: (v) => temp = DateTime(
-                            _deadline.year,
-                            _deadline.month,
-                            _deadline.day,
-                            v.hour,
-                            v.minute,
+                        child: CupertinoTheme(
+                          data: CupertinoThemeData(
+                            brightness:
+                                dark ? Brightness.dark : Brightness.light,
+                            primaryColor: AppColors.onSurface,
+                            scaffoldBackgroundColor: AppColors.surface,
+                            textTheme: CupertinoTextThemeData(
+                              dateTimePickerTextStyle: TextStyle(
+                                color: AppColors.onSurface,
+                                fontSize: 28,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.2,
+                              ),
+                            ),
+                          ),
+                          child: CupertinoDatePicker(
+                            mode: CupertinoDatePickerMode.time,
+                            use24hFormat: use24h,
+                            initialDateTime: _deadline,
+                            minuteInterval: 1,
+                            itemExtent: 38,
+                            backgroundColor: AppColors.surface,
+                            onDateTimeChanged: (v) => temp = DateTime(
+                              _deadline.year,
+                              _deadline.month,
+                              _deadline.day,
+                              v.hour,
+                              v.minute,
+                            ),
                           ),
                         ),
                       ),
                     ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: NbButton(
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          color: AppColors.surface,
+                          expand: true,
+                          child: const Text('CANCEL'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: NbButton(
+                          onPressed: () => Navigator.of(ctx).pop(temp),
+                          color: AppColors.primary,
+                          expand: true,
+                          child: const Text('DONE'),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -153,26 +248,44 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
         );
       },
     );
-
     if (picked != null) setState(() => _deadline = picked);
   }
 
   Future<void> _pickRecurrence() async {
-    final picked = await showCupertinoModalPopup<Recurrence>(
+    final picked = await showDialog<Recurrence>(
       context: context,
-      builder: (ctx) => CupertinoActionSheet(
-        title: const Text('Repeat'),
-        actions: [
-          for (final r in Recurrence.values)
-            CupertinoActionSheetAction(
-              onPressed: () => Navigator.of(ctx).pop(r),
-              isDefaultAction: r == _recurrence,
-              child: Text(_recurrenceLabel(r)),
+      builder: (ctx) => Dialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(
+          side: BorderSide(
+              color: AppColors.border, width: NbStyles.borderWidth),
+          borderRadius:
+              const BorderRadius.all(Radius.circular(AppRadii.card)),
+        ),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 360),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('REPEAT', style: AppTextStyles.title),
+                const SizedBox(height: 12),
+                for (final r in Recurrence.values) ...[
+                  NbButton(
+                    onPressed: () => Navigator.of(ctx).pop(r),
+                    color: r == _recurrence
+                        ? AppColors.primary
+                        : AppColors.surface,
+                    expand: true,
+                    child: Text(_recurrenceLabel(r).toUpperCase()),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ],
             ),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          onPressed: () => Navigator.of(ctx).pop(),
-          child: const Text('Cancel'),
+          ),
         ),
       ),
     );
@@ -199,12 +312,16 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
     final notifier = ref.read(tasksProvider.notifier);
     final description = _descriptionController.text.trim();
 
+    final effectiveEnd =
+        _recurrence == Recurrence.none ? null : _recurrenceEndDate;
+
     if (_isEditing) {
       final updated = widget.task!.copyWith(
         title: _titleController.text.trim(),
         description: description.isEmpty ? null : description,
         deadline: _deadline,
         recurrence: _recurrence,
+        recurrenceEndDate: effectiveEnd,
       );
       await notifier.edit(updated);
     } else {
@@ -213,6 +330,7 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
         description: description.isEmpty ? null : description,
         deadline: _deadline,
         recurrence: _recurrence,
+        recurrenceEndDate: effectiveEnd,
       ));
     }
 
@@ -228,216 +346,202 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        elevation: 0,
-        leadingWidth: 80,
-        leading: CupertinoButton(
-          padding: const EdgeInsets.only(left: 16),
-          onPressed: _saving ? null : () => Navigator.of(context).pop(),
-          child: const Text(
-            'Cancel',
-            style: TextStyle(color: AppColors.primary, fontSize: 17),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    NbIconButton(
+                      icon: Icons.arrow_back,
+                      size: 36,
+                      onPressed: _saving
+                          ? null
+                          : () => Navigator.of(context).pop(),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        _isEditing ? 'EDIT TASK' : 'NEW TASK',
+                        style: AppTextStyles.title,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  height: NbStyles.borderWidth,
+                  color: AppColors.border,
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: ListView(
+                    children: [
+                      _Label('TASK NAME'),
+                      const SizedBox(height: 6),
+                      TextFormField(
+                        controller: _titleController,
+                        autofocus: !_isEditing,
+                        textInputAction: TextInputAction.next,
+                        style: AppTextStyles.body,
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Title is required'
+                            : null,
+                        decoration: const InputDecoration(hintText: 'e.g. Pay bill'),
+                      ),
+                      const SizedBox(height: 16),
+                      _Label('DESCRIPTION'),
+                      const SizedBox(height: 6),
+                      TextFormField(
+                        controller: _descriptionController,
+                        maxLines: 4,
+                        minLines: 4,
+                        style: AppTextStyles.body,
+                        decoration: const InputDecoration(
+                            hintText: 'Optional notes'),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                              children: [
+                                _Label('DUE DATE'),
+                                const SizedBox(height: 6),
+                                NbButton(
+                                  onPressed: _pickDate,
+                                  color: AppColors.surface,
+                                  expand: true,
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 14),
+                                  child: Text(
+                                      dateFormat.format(_deadline)),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                              children: [
+                                _Label('TIME'),
+                                const SizedBox(height: 6),
+                                NbButton(
+                                  onPressed: _pickTime,
+                                  color: AppColors.surface,
+                                  expand: true,
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 14),
+                                  child: Text(
+                                      timeFormat.format(_deadline)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      _Label('REPEAT'),
+                      const SizedBox(height: 6),
+                      NbButton(
+                        onPressed: _pickRecurrence,
+                        color: AppColors.surface,
+                        expand: true,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        child: Text(
+                            _recurrenceLabel(_recurrence).toUpperCase()),
+                      ),
+                      if (_recurrence != Recurrence.none) ...[
+                        const SizedBox(height: 16),
+                        _Label('REPEAT UNTIL'),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: NbButton(
+                                onPressed: _pickRecurrenceEndDate,
+                                color: AppColors.surface,
+                                expand: true,
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 14),
+                                child: Text(
+                                  _recurrenceEndDate == null
+                                      ? 'NO END DATE'
+                                      : dateFormat
+                                          .format(_recurrenceEndDate!)
+                                          .toUpperCase(),
+                                ),
+                              ),
+                            ),
+                            if (_recurrenceEndDate != null) ...[
+                              const SizedBox(width: 12),
+                              NbIconButton(
+                                icon: Icons.close,
+                                size: 48,
+                                color: AppColors.surface,
+                                onPressed: _clearRecurrenceEndDate,
+                                tooltip: 'Clear end date',
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: NbButton(
+                        onPressed: _saving
+                            ? null
+                            : () => Navigator.of(context).pop(),
+                        color: AppColors.surface,
+                        expand: true,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        child: const Text('CANCEL'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: NbButton(
+                        onPressed: _saving ? null : _save,
+                        color: AppColors.primary,
+                        expand: true,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        child: const Text('SAVE'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
-        title: Text(_isEditing ? 'Edit Task' : 'New Task',
-            style: AppTextStyles.title),
-        actions: [
-          CupertinoButton(
-            padding: const EdgeInsets.only(right: 16),
-            onPressed: _saving ? null : _save,
-            child: const Text(
-              'Save',
-              style: TextStyle(
-                color: AppColors.primary,
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-          children: [
-            _GroupedSection(
-              children: [
-                _CellTextField(
-                  controller: _titleController,
-                  hint: 'Title',
-                  autofocus: !_isEditing,
-                  validator: (v) => (v == null || v.trim().isEmpty)
-                      ? 'Title is required'
-                      : null,
-                ),
-                const _CellDivider(),
-                _CellTextField(
-                  controller: _descriptionController,
-                  hint: 'Notes',
-                  maxLines: 4,
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            _SectionHeader('Deadline'),
-            _GroupedSection(
-              children: [
-                _ValueCell(
-                  label: 'Date',
-                  value: dateFormat.format(_deadline),
-                  onTap: _pickDate,
-                ),
-                const _CellDivider(),
-                _ValueCell(
-                  label: 'Time',
-                  value: timeFormat.format(_deadline),
-                  onTap: _pickTime,
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            _SectionHeader('Repeat'),
-            _GroupedSection(
-              children: [
-                _ValueCell(
-                  label: 'Frequency',
-                  value: _recurrenceLabel(_recurrence),
-                  onTap: _pickRecurrence,
-                ),
-              ],
-            ),
-          ],
-        ),
       ),
     );
   }
 }
 
-class _GroupedSection extends StatelessWidget {
-  const _GroupedSection({required this.children});
-
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppRadii.card),
-      child: Container(
-        color: AppColors.surface,
-        child: Column(children: children),
-      ),
-    );
-  }
-}
-
-class _CellDivider extends StatelessWidget {
-  const _CellDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.only(left: 16),
-      child: Divider(
-        height: 0.5,
-        thickness: 0.5,
-        color: AppColors.divider,
-      ),
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader(this.label);
-  final String label;
+class _Label extends StatelessWidget {
+  const _Label(this.text);
+  final String text;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
-      child: Text(label.toUpperCase(), style: AppTextStyles.sectionHeader),
-    );
-  }
-}
-
-class _ValueCell extends StatelessWidget {
-  const _ValueCell({
-    required this.label,
-    required this.value,
-    required this.onTap,
-  });
-
-  final String label;
-  final String value;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.surface,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(
-            children: [
-              Text(label, style: AppTextStyles.body),
-              const Spacer(),
-              Text(
-                value,
-                style: AppTextStyles.body.copyWith(
-                  color: AppColors.onSurfaceMuted,
-                ),
-              ),
-              const SizedBox(width: 6),
-              const Icon(
-                CupertinoIcons.chevron_right,
-                size: 14,
-                color: AppColors.onSurfaceFaint,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CellTextField extends StatelessWidget {
-  const _CellTextField({
-    required this.controller,
-    required this.hint,
-    this.maxLines = 1,
-    this.autofocus = false,
-    this.validator,
-  });
-
-  final TextEditingController controller;
-  final String hint;
-  final int maxLines;
-  final bool autofocus;
-  final String? Function(String?)? validator;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextFormField(
-      controller: controller,
-      autofocus: autofocus,
-      maxLines: maxLines,
-      style: AppTextStyles.body,
-      validator: validator,
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: const TextStyle(color: AppColors.onSurfaceFaint),
-        filled: true,
-        fillColor: AppColors.surface,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        border: InputBorder.none,
-        enabledBorder: InputBorder.none,
-        focusedBorder: InputBorder.none,
-      ),
+      padding: const EdgeInsets.only(left: 4),
+      child: Text(text, style: AppTextStyles.sectionHeader),
     );
   }
 }
