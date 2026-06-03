@@ -34,8 +34,20 @@ class TasksNotifier extends AsyncNotifier<List<Task>> {
 
   Future<AppSettings> _settings() => ref.read(settingsProvider.future);
 
-  Future<void> _refresh() async {
-    state = const AsyncValue.loading();
+  List<Task> get _current => state.value ?? const [];
+
+  /// Pushes a new task list into state immediately, kept sorted by deadline to
+  /// match `repo.getAll()`'s ordering. This drives optimistic UI updates so a
+  /// mutation never flashes the list to a loading spinner or waits on a full
+  /// DB re-read.
+  void _setTasks(List<Task> tasks) {
+    tasks.sort((a, b) => a.deadline.compareTo(b.deadline));
+    state = AsyncValue.data(tasks);
+  }
+
+  /// Full reload from the DB. Only used as an error-recovery fallback now —
+  /// the happy path updates state in place.
+  Future<void> _reloadFromDb() async {
     state = await AsyncValue.guard(() async {
       final repo = await ref.read(taskRepositoryProvider.future);
       return repo.getAll();
@@ -43,28 +55,43 @@ class TasksNotifier extends AsyncNotifier<List<Task>> {
   }
 
   Future<void> add(Task task) async {
-    final repo = await ref.read(taskRepositoryProvider.future);
-    final saved = await repo.create(task);
-    final settings = await _settings();
-    await ref.read(notificationServiceProvider).schedule(saved, settings);
-    await _refresh();
+    try {
+      final repo = await ref.read(taskRepositoryProvider.future);
+      final saved = await repo.create(task);
+      _setTasks([..._current, saved]);
+      final settings = await _settings();
+      await ref.read(notificationServiceProvider).schedule(saved, settings);
+    } catch (_) {
+      await _reloadFromDb();
+    }
   }
 
   Future<void> edit(Task task) async {
-    final repo = await ref.read(taskRepositoryProvider.future);
-    await repo.update(task);
-    final notifications = ref.read(notificationServiceProvider);
-    final settings = await _settings();
-    await notifications.cancel(task.id!);
-    await notifications.schedule(task, settings);
-    await _refresh();
+    // Update the UI first, then persist + reschedule notifications. The user
+    // sees the change instantly instead of waiting on ~100 native notification
+    // calls and a database round-trip.
+    _setTasks([for (final t in _current) t.id == task.id ? task : t]);
+    try {
+      final repo = await ref.read(taskRepositoryProvider.future);
+      await repo.update(task);
+      final notifications = ref.read(notificationServiceProvider);
+      final settings = await _settings();
+      await notifications.cancel(task.id!);
+      await notifications.schedule(task, settings);
+    } catch (_) {
+      await _reloadFromDb();
+    }
   }
 
   Future<void> remove(int id) async {
-    final repo = await ref.read(taskRepositoryProvider.future);
-    await ref.read(notificationServiceProvider).cancel(id);
-    await repo.delete(id);
-    await _refresh();
+    _setTasks(_current.where((t) => t.id != id).toList());
+    try {
+      final repo = await ref.read(taskRepositoryProvider.future);
+      await ref.read(notificationServiceProvider).cancel(id);
+      await repo.delete(id);
+    } catch (_) {
+      await _reloadFromDb();
+    }
   }
 
   Future<void> toggleDone(Task task) async {
