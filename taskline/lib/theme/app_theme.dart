@@ -7,47 +7,61 @@ import 'package:flutter/services.dart';
 final ValueNotifier<Brightness> appBrightness =
     ValueNotifier<Brightness>(Brightness.light);
 
+/// Monospace type stack. The defining signal of the terminal aesthetic — a
+/// system monospace on every platform we ship to, with a generic fallback.
+const String kMonoFamily = 'Consolas';
+const List<String> kMonoFallback = <String>[
+  'Consolas',
+  'Cascadia Mono',
+  'Courier New',
+  'Roboto Mono',
+  'monospace',
+];
+
+/// Light "paper terminal" palette — warm paper with the same amber accent, for
+/// users who want a bright variant of the CLI look.
 class _LightPalette {
-  static const Color background = Color(0xFFFEFCE8); // cream
-  static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceVariant = Color(0xFFFFF7B2); // light yellow tint
-  static const Color border = Color(0xFF000000);
-  static const Color primary = Color(0xFFFFD700); // signature yellow
-  static const Color primaryDark = Color(0xFFE6B800);
-  static const Color secondary = Color(0xFFA7F432); // lime accent
-  static const Color destructive = Color(0xFFFF6B6B);
-  static const Color success = Color(0xFFA7F432);
-  static const Color warning = Color(0xFFFF9F1C);
-  static const Color onSurface = Color(0xFF000000);
-  static const Color onSurfaceMuted = Color(0xFF3F3F46);
-  static const Color onSurfaceFaint = Color(0xFF71717A);
-  static const Color shadow = Color(0xFF000000);
+  static const Color background = Color(0xFFF2EFE6); // warm paper
+  static const Color surface = Color(0xFFFBF9F1); // lifted panel
+  static const Color surfaceVariant = Color(0xFFECE6D8);
+  static const Color border = Color(0xFFD8D0BF); // hairline
+  static const Color primary = Color(0xFFC8851A); // deep amber (reads on light)
+  static const Color primaryDark = Color(0xFFA66E12);
+  static const Color secondary = Color(0xFF2E8C7C); // teal accent
+  static const Color destructive = Color(0xFFC2503C);
+  static const Color success = Color(0xFF2E8C7C);
+  static const Color warning = Color(0xFFB26A00);
+  static const Color onSurface = Color(0xFF211C12);
+  static const Color onSurfaceMuted = Color(0xFF5B5546);
+  static const Color onSurfaceFaint = Color(0xFF8A8470);
+  static const Color shadow = Color(0x1F000000);
+  // Content sitting on a bright accent fill (button labels, checkmarks).
+  static const Color onPrimary = Color(0xFF1A1304);
 }
 
+/// Dark CLI palette — amber/gold on a warm near-black tube. The hero look:
+/// faint lifted panels, hairline borders, a soft amber glow on the active
+/// element. Modelled on a modern terminal dashboard.
 class _DarkPalette {
-  // Pure black + white + yellow — full-contrast brutalist palette.
-  static const Color background = Color(0xFF000000);
-  static const Color surface = Color(0xFF1A1A1A);
-  static const Color surfaceVariant = Color(0xFF2A2A2A);
-  // Pure white border so cards punch out hard against the black bg.
-  static const Color border = Color(0xFFFFFFFF);
-  // Muted gold replaces the light theme's bright yellow — same hue family
-  // but lower luminance so it doesn't burn against a true-black bg.
-  static const Color primary = Color(0xFFC9A227);
-  static const Color primaryDark = Color(0xFFA8861E);
-  static const Color secondary = Color(0xFFA7F432);
-  static const Color destructive = Color(0xFFFF6B6B);
-  static const Color success = Color(0xFFA7F432);
-  static const Color warning = Color(0xFFFF9F1C);
-  static const Color onSurface = Color(0xFFFFFFFF);
-  static const Color onSurfaceMuted = Color(0xFFB5B5B5);
-  static const Color onSurfaceFaint = Color(0xFF808080);
-  // White shadows on black so the hard offset still reads.
-  static const Color shadow = Color(0xFFFFFFFF);
+  static const Color background = Color(0xFF0D0D0C); // warm near-black
+  static const Color surface = Color(0xFF161513); // faint lifted panel
+  static const Color surfaceVariant = Color(0xFF1F1D1A);
+  static const Color border = Color(0xFF2C2824); // warm hairline
+  static const Color primary = Color(0xFFE9A93C); // amber / gold
+  static const Color primaryDark = Color(0xFFC8902E);
+  static const Color secondary = Color(0xFF46B3A0); // teal accent
+  static const Color destructive = Color(0xFFE06C5A); // warm red
+  static const Color success = Color(0xFF46B3A0);
+  static const Color warning = Color(0xFFE9A93C);
+  static const Color onSurface = Color(0xFFE5E0D6); // warm off-white body
+  static const Color onSurfaceMuted = Color(0xFF9C968B); // warm gray meta
+  static const Color onSurfaceFaint = Color(0xFF6E6A62);
+  static const Color shadow = Color(0x66000000);
+  static const Color onPrimary = Color(0xFF1A1304); // dark text on amber
 }
 
-/// Neo-brutalist palette wrapper. Static getters resolve to the light or
-/// dark palette depending on [appBrightness].
+/// Terminal palette wrapper. Static getters resolve to the light or dark
+/// palette depending on [appBrightness].
 class AppColors {
   AppColors._();
 
@@ -81,6 +95,12 @@ class AppColors {
       _dark ? _DarkPalette.onSurfaceMuted : _LightPalette.onSurfaceMuted;
   static Color get onSurfaceFaint =>
       _dark ? _DarkPalette.onSurfaceFaint : _LightPalette.onSurfaceFaint;
+
+  /// Near-black foreground for content placed on a bright accent fill
+  /// (amber / teal / red). Reads on all of them in both modes.
+  static Color get onPrimary =>
+      _dark ? _DarkPalette.onPrimary : _LightPalette.onPrimary;
+
   static Color get groupedHeader => onSurface;
 
   // Backwards-compat alias used by some old call sites.
@@ -90,28 +110,39 @@ class AppColors {
 class AppRadii {
   AppRadii._();
 
-  /// Slight rounding only — keeps the brutalist sharp feel while avoiding
-  /// jagged single-pixel corners at small sizes.
-  static const double card = 4;
-  static const double pill = 6;
-  static const double inputField = 4;
+  /// Gentle rounding — the refined CLI-dashboard look, not razor-sharp.
+  static const double card = 6;
+  static const double pill = 8;
+  static const double inputField = 6;
 }
 
-/// Neo-brutalist shadow/border atoms reused by widgets.
+/// Terminal shadow/border atoms reused by widgets. Borders are hairlines and
+/// shadows are soft (or amber glows on accent fills) — depth comes from the
+/// faint panel fill, not from hard offsets.
 class NbStyles {
   NbStyles._();
 
-  static const double borderWidth = 2.5;
-  static const Offset shadowOffset = Offset(4, 4);
-  static const Offset shadowOffsetSmall = Offset(3, 3);
+  static const double borderWidth = 1;
+  static const Offset shadowOffset = Offset(0, 2);
+  static const Offset shadowOffsetSmall = Offset(0, 1);
 
-  static Color get shadowColor =>
-      appBrightness.value == Brightness.dark
-          ? _DarkPalette.shadow
-          : _LightPalette.shadow;
+  static Color get shadowColor => appBrightness.value == Brightness.dark
+      ? _DarkPalette.shadow
+      : _LightPalette.shadow;
 
   static BorderSide get blackBorder =>
       BorderSide(color: AppColors.border, width: borderWidth);
+
+  /// Picks a legible foreground for content sitting on [fill]. Bright fills
+  /// (amber, teal, red, light surfaces) get the near-black
+  /// [AppColors.onPrimary]; dark fills get the light [AppColors.onSurface].
+  /// Centralises contrast so no widget hand-codes a foreground on an accent.
+  static Color foregroundOn(Color fill) =>
+      fill.computeLuminance() > 0.3 ? AppColors.onPrimary : AppColors.onSurface;
+
+  /// True when [fill] is a bright accent that should carry a soft glow rather
+  /// than a drop shadow.
+  static bool isAccent(Color fill) => fill.computeLuminance() > 0.3;
 
   static BoxDecoration boxedCard({
     Color? fill,
@@ -122,14 +153,14 @@ class NbStyles {
     return BoxDecoration(
       color: fill ?? AppColors.surface,
       borderRadius: BorderRadius.circular(radius),
-      border:
-          Border.all(color: borderColor ?? AppColors.border, width: borderWidth),
+      border: Border.all(
+          color: borderColor ?? AppColors.border, width: borderWidth),
       boxShadow: [
         BoxShadow(
           color: shadowColor,
           offset: shadowOffset,
-          blurRadius: 0,
-          spreadRadius: 0,
+          blurRadius: 8,
+          spreadRadius: -4,
         ),
       ],
     );
@@ -139,51 +170,71 @@ class NbStyles {
 class AppTextStyles {
   AppTextStyles._();
 
-  static TextStyle get largeTitle => TextStyle(
+  // Monospace fonts top out at a real bold (w700); heavier weights only get
+  // synthesised, so the terminal styles cap there.
+  static TextStyle _mono({
+    required Color color,
+    required double fontSize,
+    FontWeight fontWeight = FontWeight.w500,
+    double letterSpacing = 0,
+    double? height,
+  }) {
+    return TextStyle(
+      fontFamily: kMonoFamily,
+      fontFamilyFallback: kMonoFallback,
+      color: color,
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      letterSpacing: letterSpacing,
+      height: height,
+    );
+  }
+
+  static TextStyle get largeTitle => _mono(
         color: AppColors.onSurface,
-        fontSize: 32,
-        fontWeight: FontWeight.w900,
-        letterSpacing: -0.5,
-        height: 1.05,
+        fontSize: 28,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0,
+        height: 1.1,
       );
 
-  static TextStyle get title => TextStyle(
-        color: AppColors.onSurface,
-        fontSize: 22,
-        fontWeight: FontWeight.w800,
-        letterSpacing: -0.2,
+  static TextStyle get title => _mono(
+        color: AppColors.primary,
+        fontSize: 21,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.5,
       );
 
-  static TextStyle get body => TextStyle(
+  static TextStyle get body => _mono(
         color: AppColors.onSurface,
-        fontSize: 16,
-        fontWeight: FontWeight.w600,
+        fontSize: 15,
+        fontWeight: FontWeight.w500,
       );
 
-  static TextStyle get subhead => TextStyle(
+  static TextStyle get subhead => _mono(
         color: AppColors.onSurface,
         fontSize: 14,
-        fontWeight: FontWeight.w600,
+        fontWeight: FontWeight.w500,
       );
 
-  static TextStyle get footnote => TextStyle(
+  static TextStyle get footnote => _mono(
         color: AppColors.onSurfaceMuted,
         fontSize: 13,
         fontWeight: FontWeight.w500,
       );
 
-  static TextStyle get sectionHeader => TextStyle(
-        color: AppColors.onSurface,
+  static TextStyle get sectionHeader => _mono(
+        color: AppColors.onSurfaceMuted,
         fontSize: 12,
-        fontWeight: FontWeight.w900,
-        letterSpacing: 1.2,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 2.0,
       );
 
-  static TextStyle get button => TextStyle(
+  static TextStyle get button => _mono(
         color: AppColors.onSurface,
-        fontSize: 16,
-        fontWeight: FontWeight.w800,
-        letterSpacing: 0.2,
+        fontSize: 14,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.5,
       );
 }
 
@@ -192,11 +243,11 @@ ThemeData buildAppTheme() {
   final scheme = ColorScheme(
     brightness: dark ? Brightness.dark : Brightness.light,
     primary: AppColors.primary,
-    onPrimary: _LightPalette.onSurface, // yellow needs black text either way
+    onPrimary: AppColors.onPrimary,
     secondary: AppColors.secondary,
-    onSecondary: _LightPalette.onSurface,
+    onSecondary: AppColors.onPrimary,
     error: AppColors.destructive,
-    onError: AppColors.onSurface,
+    onError: AppColors.onPrimary,
     surface: AppColors.surface,
     onSurface: AppColors.onSurface,
     surfaceContainerHighest: AppColors.surfaceVariant,
@@ -207,6 +258,7 @@ ThemeData buildAppTheme() {
     useMaterial3: true,
     brightness: dark ? Brightness.dark : Brightness.light,
     colorScheme: scheme,
+    fontFamily: kMonoFamily,
     scaffoldBackgroundColor: AppColors.background,
     canvasColor: AppColors.background,
     dividerColor: AppColors.border,
@@ -232,10 +284,9 @@ ThemeData buildAppTheme() {
       fillColor: AppColors.surface,
       contentPadding:
           const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      hintStyle: TextStyle(
-          color: AppColors.onSurfaceFaint, fontWeight: FontWeight.w600),
-      labelStyle: TextStyle(
-          color: AppColors.onSurfaceMuted, fontWeight: FontWeight.w700),
+      hintStyle: AppTextStyles.body.copyWith(color: AppColors.onSurfaceFaint),
+      labelStyle:
+          AppTextStyles.body.copyWith(color: AppColors.onSurfaceMuted),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadii.inputField),
         borderSide: NbStyles.blackBorder,
@@ -246,11 +297,11 @@ ThemeData buildAppTheme() {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadii.inputField),
-        borderSide: BorderSide(color: AppColors.primary, width: 3),
+        borderSide: BorderSide(color: AppColors.primary, width: 2),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadii.inputField),
-        borderSide: BorderSide(color: AppColors.destructive, width: 3),
+        borderSide: BorderSide(color: AppColors.destructive, width: 2),
       ),
     ),
     dialogTheme: DialogThemeData(

@@ -82,8 +82,8 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
     });
   }
 
-  /// Re-skins the stock Material date picker so it matches the neo-brutalist
-  /// theme — yellow selection chip, black text, bold weights, sharp corners.
+  /// Re-skins the stock Material date picker so it matches the terminal
+  /// theme — green selection chip, near-black text, bold weights, sharp corners.
   Widget _brutalistPickerTheme(BuildContext context, Widget? child) {
     final base = Theme.of(context);
     final dark = appBrightness.value == Brightness.dark;
@@ -92,11 +92,11 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
         colorScheme: ColorScheme(
           brightness: dark ? Brightness.dark : Brightness.light,
           primary: AppColors.primary,
-          onPrimary: const Color(0xFF000000),
+          onPrimary: AppColors.onPrimary,
           surface: AppColors.surface,
           onSurface: AppColors.onSurface,
           secondary: AppColors.primary,
-          onSecondary: const Color(0xFF000000),
+          onSecondary: AppColors.onPrimary,
           error: AppColors.destructive,
           onError: AppColors.onSurface,
         ),
@@ -112,11 +112,11 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
         datePickerTheme: DatePickerThemeData(
           backgroundColor: AppColors.surface,
           headerBackgroundColor: AppColors.primary,
-          headerForegroundColor: const Color(0xFF000000),
+          headerForegroundColor: AppColors.onPrimary,
           headerHeadlineStyle: AppTextStyles.title,
           headerHelpStyle: AppTextStyles.sectionHeader,
           weekdayStyle: AppTextStyles.footnote
-              .copyWith(fontWeight: FontWeight.w800),
+              .copyWith(fontWeight: FontWeight.w700),
           dayStyle: AppTextStyles.body,
           dayForegroundColor: WidgetStatePropertyAll(AppColors.onSurface),
           dayBackgroundColor: const WidgetStatePropertyAll(Colors.transparent),
@@ -133,7 +133,7 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
           ),
           dayShape: const WidgetStatePropertyAll(
             RoundedRectangleBorder(
-              borderRadius: BorderRadius.all(Radius.circular(4)),
+              borderRadius: BorderRadius.all(Radius.circular(AppRadii.card)),
             ),
           ),
           dividerColor: AppColors.border,

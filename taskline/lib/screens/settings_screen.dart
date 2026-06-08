@@ -453,7 +453,7 @@ class _UnitDropdown extends StatelessWidget {
         color: AppColors.surface,
         border: Border.all(
             color: AppColors.border, width: NbStyles.borderWidth),
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(AppRadii.card),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<ReminderUnit>(

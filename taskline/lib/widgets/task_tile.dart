@@ -39,7 +39,6 @@ class TaskTile extends ConsumerWidget {
           NbButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             color: AppColors.destructive,
-            foregroundColor: AppColors.onSurface,
             child: const Text('Delete'),
           ),
         ],
@@ -80,10 +79,11 @@ class TaskTile extends ConsumerWidget {
                   Text(
                     task.title,
                     style: AppTextStyles.body.copyWith(
-                      fontSize: 17,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
                       color: task.isDone
                           ? AppColors.onSurfaceFaint
-                          : AppColors.onSurface,
+                          : AppColors.primary,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

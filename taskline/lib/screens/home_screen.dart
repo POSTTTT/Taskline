@@ -69,7 +69,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                   child: Row(
                     children: [
-                      Text('TASKLINE', style: AppTextStyles.largeTitle),
+                      Flexible(
+                        child: Text(
+                          'Taskline',
+                          style: AppTextStyles.largeTitle
+                              .copyWith(color: AppColors.primary),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      _BlinkingCursor(),
                     ],
                   ),
                 ),
@@ -160,6 +169,45 @@ String _filterLabel(TaskFilter f) {
   }
 }
 
+/// A solid block that blinks like a terminal text cursor, parked after the
+/// "> TASKLINE" prompt in the header.
+class _BlinkingCursor extends StatefulWidget {
+  @override
+  State<_BlinkingCursor> createState() => _BlinkingCursorState();
+}
+
+class _BlinkingCursorState extends State<_BlinkingCursor>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 6, bottom: 4),
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) => Opacity(
+          opacity: _controller.value < 0.5 ? 1 : 0,
+          child: Container(
+            width: 12,
+            height: 22,
+            color: AppColors.primary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _EmptyState extends StatelessWidget {
   const _EmptyState();
 
@@ -170,12 +218,12 @@ class _EmptyState extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.inbox_outlined,
+          Icon(Icons.terminal,
               size: 72, color: AppColors.onSurfaceFaint),
           const SizedBox(height: 16),
           Text('NO TASKS', style: AppTextStyles.title),
           const SizedBox(height: 6),
-          Text('Tap + to add one.',
+          Text('// tap + to add one',
               textAlign: TextAlign.center,
               style: AppTextStyles.body.copyWith(
                 color: AppColors.onSurfaceMuted,
