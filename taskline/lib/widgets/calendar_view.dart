@@ -496,7 +496,11 @@ class CalendarTaskTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final localDate = (occurrenceDate ?? task.deadline).toLocal();
+    // The calendar only builds this tile from concrete occurrences, so
+    // occurrenceDate is always supplied; createdAt is an unreachable fallback
+    // that keeps this non-null (deadline-less todos never reach the calendar).
+    final localDate =
+        (occurrenceDate ?? task.deadline ?? task.createdAt).toLocal();
     final countdown = formatDueIn(localDate);
     final overdue = localDate.isBefore(DateTime.now()) && !task.isDone;
 

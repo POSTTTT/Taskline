@@ -51,11 +51,12 @@ class TaskTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final localDeadline = task.deadline.toLocal();
+    final localDeadline = task.deadline?.toLocal();
     final settings =
         ref.watch(settingsProvider).value ?? const AppSettings();
-    final formatted =
-        DateFormat(settings.combinedPattern).format(localDeadline);
+    final formatted = localDeadline == null
+        ? null
+        : DateFormat(settings.combinedPattern).format(localDeadline);
 
     return GestureDetector(
       onTap: onTap,
@@ -92,21 +93,27 @@ class TaskTile extends ConsumerWidget {
                   Row(
                     children: [
                       Text(
-                        formatted.toUpperCase(),
+                        formatted?.toUpperCase() ?? 'TODO',
                         style: AppTextStyles.footnote.copyWith(
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w700,
                           letterSpacing: 0.4,
                         ),
                       ),
                       if (task.recurrence != Recurrence.none) ...[
                         const SizedBox(width: 8),
-                        Icon(CupertinoIcons.repeat,
-                            size: 12, color: AppColors.onSurfaceMuted),
+                        Icon(
+                          // Scheduled tasks repeat; todos nudge (a bell).
+                          formatted == null
+                              ? CupertinoIcons.bell
+                              : CupertinoIcons.repeat,
+                          size: 12,
+                          color: AppColors.onSurfaceMuted,
+                        ),
                         const SizedBox(width: 2),
                         Text(
                           task.recurrence.name.toUpperCase(),
                           style: AppTextStyles.footnote.copyWith(
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w700,
                             letterSpacing: 0.4,
                           ),
                         ),

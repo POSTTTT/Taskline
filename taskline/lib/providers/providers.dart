@@ -36,12 +36,19 @@ class TasksNotifier extends AsyncNotifier<List<Task>> {
 
   List<Task> get _current => state.value ?? const [];
 
-  /// Pushes a new task list into state immediately, kept sorted by deadline to
-  /// match `repo.getAll()`'s ordering. This drives optimistic UI updates so a
-  /// mutation never flashes the list to a loading spinner or waits on a full
-  /// DB re-read.
+  /// Pushes a new task list into state immediately, kept in the same order as
+  /// `repo.getAll()`: dated tasks first by soonest deadline, then deadline-less
+  /// todos (newest first). This drives optimistic UI updates so a mutation
+  /// never flashes the list to a loading spinner or waits on a full DB re-read.
   void _setTasks(List<Task> tasks) {
-    tasks.sort((a, b) => a.deadline.compareTo(b.deadline));
+    tasks.sort((a, b) {
+      final da = a.deadline;
+      final db = b.deadline;
+      if (da == null && db == null) return b.createdAt.compareTo(a.createdAt);
+      if (da == null) return 1; // todos sort after dated tasks
+      if (db == null) return -1;
+      return da.compareTo(db);
+    });
     state = AsyncValue.data(tasks);
   }
 

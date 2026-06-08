@@ -23,7 +23,7 @@ class AppDatabase {
     final db = await databaseFactory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 2,
+        version: 3,
         onCreate: (db, _) => TaskRepository.createSchema(db),
         onUpgrade: TaskRepository.migrate,
       ),

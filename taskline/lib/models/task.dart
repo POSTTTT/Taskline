@@ -11,7 +11,11 @@ class Task {
   final int? id;
   final String title;
   final String? description;
-  final DateTime deadline;
+
+  /// The due date/time, in UTC. `null` means this is a deadline-less "todo"
+  /// (a someday/backlog item). For a todo, [recurrence] is reinterpreted as an
+  /// optional "remind me" nudge cadence rather than a repeating deadline.
+  final DateTime? deadline;
   final bool isDone;
   final Recurrence recurrence;
   final DateTime? recurrenceEndDate;
@@ -21,20 +25,23 @@ class Task {
     this.id,
     required this.title,
     this.description,
-    required DateTime deadline,
+    DateTime? deadline,
     this.isDone = false,
     this.recurrence = Recurrence.none,
     DateTime? recurrenceEndDate,
     DateTime? createdAt,
-  })  : deadline = deadline.toUtc(),
+  })  : deadline = deadline?.toUtc(),
         recurrenceEndDate = recurrenceEndDate?.toUtc(),
         createdAt = (createdAt ?? DateTime.now()).toUtc();
+
+  /// True when this is a deadline-less todo rather than a scheduled task.
+  bool get isTodo => deadline == null;
 
   Task copyWith({
     int? id,
     String? title,
     String? description,
-    DateTime? deadline,
+    Object? deadline = _sentinel,
     bool? isDone,
     Recurrence? recurrence,
     Object? recurrenceEndDate = _sentinel,
@@ -44,7 +51,9 @@ class Task {
       id: id ?? this.id,
       title: title ?? this.title,
       description: description ?? this.description,
-      deadline: deadline ?? this.deadline,
+      deadline: identical(deadline, _sentinel)
+          ? this.deadline
+          : deadline as DateTime?,
       isDone: isDone ?? this.isDone,
       recurrence: recurrence ?? this.recurrence,
       recurrenceEndDate: identical(recurrenceEndDate, _sentinel)
@@ -61,7 +70,7 @@ class Task {
       if (id != null) 'id': id,
       'title': title,
       'description': description,
-      'deadline': deadline.toIso8601String(),
+      'deadline': deadline?.toIso8601String(),
       'is_done': isDone ? 1 : 0,
       'recurrence': recurrence.name,
       'recurrence_end_date': recurrenceEndDate?.toIso8601String(),
@@ -71,11 +80,12 @@ class Task {
 
   factory Task.fromMap(Map<String, Object?> map) {
     final endRaw = map['recurrence_end_date'] as String?;
+    final deadlineRaw = map['deadline'] as String?;
     return Task(
       id: map['id'] as int?,
       title: map['title'] as String,
       description: map['description'] as String?,
-      deadline: DateTime.parse(map['deadline'] as String),
+      deadline: deadlineRaw == null ? null : DateTime.parse(deadlineRaw),
       isDone: (map['is_done'] as int) == 1,
       recurrence: recurrenceFromString(map['recurrence'] as String),
       recurrenceEndDate: endRaw == null ? null : DateTime.parse(endRaw),
@@ -86,8 +96,10 @@ class Task {
   /// Returns true if a recurrence (or the original deadline) lands on `day`
   /// in local time. Used by the calendar to mark days and filter the list.
   bool occursOn(DateTime day) {
+    final dl = deadline;
+    if (dl == null) return false; // deadline-less todos never land on a day
     final localDay = DateTime(day.year, day.month, day.day);
-    final localDeadline = deadline.toLocal();
+    final localDeadline = dl.toLocal();
     final deadlineDay = DateTime(
         localDeadline.year, localDeadline.month, localDeadline.day);
 
@@ -120,6 +132,8 @@ class Task {
   /// All occurrence datetimes in `[start, end)`. Useful for building the
   /// calendar's task list, where each occurrence becomes its own row.
   Iterable<DateTime> occurrencesIn(DateTime start, DateTime end) sync* {
+    final dl = deadline;
+    if (dl == null) return; // todos have no calendar occurrences
     final startUtc = start.toUtc();
     final endUtc = end.toUtc();
     final effectiveEnd = recurrenceEndDate != null &&
@@ -130,13 +144,13 @@ class Task {
         : endUtc;
 
     if (recurrence == Recurrence.none) {
-      if (!deadline.isBefore(startUtc) && deadline.isBefore(endUtc)) {
-        yield deadline;
+      if (!dl.isBefore(startUtc) && dl.isBefore(endUtc)) {
+        yield dl;
       }
       return;
     }
 
-    var current = deadline;
+    var current = dl;
     while (current.isBefore(startUtc)) {
       current = _step(current);
     }
@@ -169,10 +183,12 @@ class Task {
   }
 
   DateTime? nextOccurrenceAfter(DateTime from) {
+    final dl = deadline;
+    if (dl == null) return null;
     final fromUtc = from.toUtc();
-    if (!deadline.isBefore(fromUtc)) return deadline;
+    if (!dl.isBefore(fromUtc)) return dl;
     if (recurrence == Recurrence.none) return null;
-    var next = deadline;
+    var next = dl;
     while (next.isBefore(fromUtc)) {
       next = _step(next);
     }

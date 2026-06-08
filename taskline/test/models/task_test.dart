@@ -6,8 +6,45 @@ void main() {
     test('stores deadline and createdAt as UTC', () {
       final localDeadline = DateTime(2026, 6, 1, 9, 0);
       final task = Task(title: 'Pay bill', deadline: localDeadline);
-      expect(task.deadline.isUtc, isTrue);
+      expect(task.deadline!.isUtc, isTrue);
       expect(task.createdAt.isUtc, isTrue);
+    });
+
+    test('a deadline-less todo has null deadline and isTodo true', () {
+      final todo = Task(title: 'Side project idea');
+      expect(todo.deadline, isNull);
+      expect(todo.isTodo, isTrue);
+      // No calendar presence for todos.
+      expect(todo.occursOn(DateTime(2026, 6, 1)), isFalse);
+      expect(
+        todo
+            .occurrencesIn(DateTime(2020), DateTime(2030))
+            .toList(),
+        isEmpty,
+      );
+      expect(todo.nextOccurrenceAfter(DateTime(2020)), isNull);
+    });
+
+    test('todo toMap / fromMap roundtrip preserves null deadline', () {
+      final todo = Task(
+        id: 3,
+        title: 'Write blog post',
+        recurrence: Recurrence.weekly, // nudge cadence for a todo
+        createdAt: DateTime.utc(2026, 5, 17, 10, 0),
+      );
+      final restored = Task.fromMap(todo.toMap());
+      expect(restored.deadline, isNull);
+      expect(restored, equals(todo));
+    });
+
+    test('copyWith can clear a deadline to make a task a todo', () {
+      final scheduled = Task(
+        title: 't',
+        deadline: DateTime.utc(2026, 1, 1),
+      );
+      final asTodo = scheduled.copyWith(deadline: null);
+      expect(asTodo.deadline, isNull);
+      expect(asTodo.isTodo, isTrue);
     });
 
     test('toMap / fromMap roundtrip preserves all fields', () {

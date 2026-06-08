@@ -34,6 +34,42 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
+  /// Upcoming view: dated tasks first, then a "NO DEADLINE" section holding
+  /// deadline-less todos. [list] is already ordered (dated by deadline, todos
+  /// after) by the provider.
+  Widget _buildUpcoming(List<Task> list) {
+    final dated = list.where((t) => t.deadline != null).toList();
+    final todos = list.where((t) => t.deadline == null).toList();
+
+    final children = <Widget>[];
+    for (var i = 0; i < dated.length; i++) {
+      children.add(TaskTile(
+        task: dated[i],
+        onTap: () => _openTaskEditor(dated[i]),
+      ));
+      if (i != dated.length - 1) children.add(const SizedBox(height: 14));
+    }
+    if (todos.isNotEmpty) {
+      if (dated.isNotEmpty) children.add(const SizedBox(height: 24));
+      children.add(Padding(
+        padding: const EdgeInsets.only(left: 4, bottom: 10),
+        child: Text('NO DEADLINE', style: AppTextStyles.sectionHeader),
+      ));
+      for (var i = 0; i < todos.length; i++) {
+        children.add(TaskTile(
+          task: todos[i],
+          onTap: () => _openTaskEditor(todos[i]),
+        ));
+        if (i != todos.length - 1) children.add(const SizedBox(height: 14));
+      }
+    }
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 110),
+      children: children,
+    );
+  }
+
   void _openTaskEditor(Task task) {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => TaskEditScreen(task: task)),
@@ -110,6 +146,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           data: (all) {
                             final list = _filtered(all);
                             if (list.isEmpty) return const _EmptyState();
+                            if (_filter == TaskFilter.upcoming) {
+                              return _buildUpcoming(list);
+                            }
                             return ListView.separated(
                               padding:
                                   const EdgeInsets.fromLTRB(20, 4, 20, 110),
@@ -161,7 +200,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 String _filterLabel(TaskFilter f) {
   switch (f) {
     case TaskFilter.upcoming:
-      return 'UPCOMING';
+      return 'TASKS';
     case TaskFilter.complete:
       return 'COMPLETE';
     case TaskFilter.calendar:

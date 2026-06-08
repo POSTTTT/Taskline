@@ -95,7 +95,9 @@ class NotificationService {
     DateTime? now,
   }) {
     final reference = (now ?? DateTime.now()).toUtc();
-    final deadline = task.deadline.toUtc();
+    final taskDeadline = task.deadline;
+    if (taskDeadline == null) return const []; // todos use computeNudges
+    final deadline = taskDeadline.toUtc();
     if (deadline.isBefore(reference)) return const [];
 
     final buckets = <_Bucket>[
@@ -154,6 +156,45 @@ class NotificationService {
     return reminders;
   }
 
+  /// Computes the UTC nudge timestamps for a deadline-less todo. Steps forward
+  /// from the task's creation time by its [Task.recurrence] cadence (the
+  /// "remind me" interval), emitting the next [_maxRemindersPerTask] future
+  /// nudges. A todo with [Recurrence.none] is silent (returns empty).
+  List<DateTime> computeNudges(Task task, {DateTime? now}) {
+    if (task.recurrence == Recurrence.none) return const [];
+    final reference = (now ?? DateTime.now()).toUtc();
+
+    // Advance from creation to the first nudge strictly after `now`. The guard
+    // bounds the walk for very old todos with a daily cadence.
+    var cursor = task.createdAt;
+    var guard = 0;
+    while (!cursor.isAfter(reference) && guard < 100000) {
+      cursor = _advance(cursor, task.recurrence);
+      guard++;
+    }
+
+    final nudges = <DateTime>[];
+    while (nudges.length < _maxRemindersPerTask) {
+      nudges.add(cursor);
+      cursor = _advance(cursor, task.recurrence);
+    }
+    return nudges;
+  }
+
+  DateTime _advance(DateTime d, Recurrence r) {
+    switch (r) {
+      case Recurrence.none:
+        return d;
+      case Recurrence.daily:
+        return d.add(const Duration(days: 1));
+      case Recurrence.weekly:
+        return d.add(const Duration(days: 7));
+      case Recurrence.monthly:
+        return DateTime.utc(d.year, d.month + 1, d.day, d.hour, d.minute,
+            d.second, d.millisecond, d.microsecond);
+    }
+  }
+
   Future<void> schedule(
     Task task,
     AppSettings settings, {
@@ -161,9 +202,13 @@ class NotificationService {
   }) async {
     if (task.id == null || task.isDone) return;
 
-    final reminders = computeReminders(task, settings, now: now);
+    final isTodo = task.deadline == null;
+    final reminders = isTodo
+        ? computeNudges(task, now: now)
+        : computeReminders(task, settings, now: now);
     if (reminders.isEmpty) return;
 
+    final deadlineUtc = task.deadline?.toUtc();
     final baseId = task.id! * _slotSize;
     final tzNow = tz.TZDateTime.now(tz.local);
 
@@ -173,13 +218,21 @@ class NotificationService {
       await _plugin.zonedSchedule(
         id: baseId + i,
         title: task.title,
-        body: _reminderBody(task, reminders[i], task.deadline.toUtc()),
+        body: deadlineUtc == null
+            ? _nudgeBody(task)
+            : _reminderBody(task, reminders[i], deadlineUtc),
         scheduledDate: scheduled,
         notificationDetails: _details(),
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         payload: task.id.toString(),
       );
     }
+  }
+
+  String _nudgeBody(Task task) {
+    final d = task.description;
+    if (d != null && d.isNotEmpty) return d;
+    return 'Still on your todo list';
   }
 
   Future<void> cancel(int taskId) async {
