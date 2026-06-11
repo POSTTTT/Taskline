@@ -141,5 +141,164 @@ void main() {
       final next = task.nextOccurrenceAfter(from);
       expect(next, DateTime.utc(2026, 3, 15, 9, 0));
     });
+
+    test('daily task years in the past lands on the correct day and time', () {
+      // Exercises the O(1) catch-up jump: 2023-01-01 to mid-2026 is ~1,250
+      // daily steps, which the old loop walked one at a time.
+      final task = Task(
+        title: 't',
+        deadline: DateTime.utc(2023, 1, 1, 9, 0),
+        recurrence: Recurrence.daily,
+      );
+      expect(
+        task.nextOccurrenceAfter(DateTime.utc(2026, 6, 11, 8, 0)),
+        DateTime.utc(2026, 6, 11, 9, 0),
+      );
+      // `from` past today's occurrence rolls to tomorrow's.
+      expect(
+        task.nextOccurrenceAfter(DateTime.utc(2026, 6, 11, 10, 0)),
+        DateTime.utc(2026, 6, 12, 9, 0),
+      );
+    });
+
+    test('an exact occurrence instant is returned, not skipped past', () {
+      final task = Task(
+        title: 't',
+        deadline: DateTime.utc(2023, 1, 1, 9, 0),
+        recurrence: Recurrence.daily,
+      );
+      expect(
+        task.nextOccurrenceAfter(DateTime.utc(2026, 6, 11, 9, 0)),
+        DateTime.utc(2026, 6, 11, 9, 0),
+      );
+    });
+  });
+
+  group('Task.occurrencesIn', () {
+    test('old daily task yields one occurrence per day in the window', () {
+      final task = Task(
+        title: 't',
+        deadline: DateTime.utc(2023, 1, 1, 9, 0),
+        recurrence: Recurrence.daily,
+      );
+      final got = task
+          .occurrencesIn(DateTime.utc(2026, 6, 1), DateTime.utc(2026, 6, 4))
+          .toList();
+      expect(got, [
+        DateTime.utc(2026, 6, 1, 9, 0),
+        DateTime.utc(2026, 6, 2, 9, 0),
+        DateTime.utc(2026, 6, 3, 9, 0),
+      ]);
+    });
+
+    test('old weekly task keeps its weekday and time across the jump', () {
+      // 2023-01-02 is a Monday.
+      final task = Task(
+        title: 't',
+        deadline: DateTime.utc(2023, 1, 2, 10, 30),
+        recurrence: Recurrence.weekly,
+      );
+      final got = task
+          .occurrencesIn(DateTime.utc(2026, 6, 1), DateTime.utc(2026, 6, 15))
+          .toList();
+      expect(got, [
+        DateTime.utc(2026, 6, 1, 10, 30), // a Monday
+        DateTime.utc(2026, 6, 8, 10, 30),
+      ]);
+    });
+
+    test('occurrence exactly at window start is included', () {
+      final task = Task(
+        title: 't',
+        deadline: DateTime.utc(2023, 1, 1, 0, 0),
+        recurrence: Recurrence.daily,
+      );
+      final got = task
+          .occurrencesIn(DateTime.utc(2026, 6, 1), DateTime.utc(2026, 6, 2))
+          .toList();
+      expect(got, [DateTime.utc(2026, 6, 1)]);
+    });
+
+    test('catch-up jump matches naive stepping for daily and weekly', () {
+      for (final recurrence in [Recurrence.daily, Recurrence.weekly]) {
+        final deadline = DateTime.utc(2024, 3, 7, 14, 45);
+        final task = Task(
+          title: 't',
+          deadline: deadline,
+          recurrence: recurrence,
+        );
+        final start = DateTime.utc(2026, 6, 5, 3, 0);
+        final end = DateTime.utc(2026, 7, 5, 3, 0);
+
+        // Reference: step one occurrence at a time, the pre-jump behavior.
+        final step = recurrence == Recurrence.daily
+            ? const Duration(days: 1)
+            : const Duration(days: 7);
+        final expected = <DateTime>[];
+        var cursor = deadline;
+        while (cursor.isBefore(start)) {
+          cursor = cursor.add(step);
+        }
+        while (cursor.isBefore(end)) {
+          expected.add(cursor);
+          cursor = cursor.add(step);
+        }
+
+        expect(task.occurrencesIn(start, end).toList(), expected,
+            reason: 'recurrence: $recurrence');
+      }
+    });
+
+    test('monthly clamps to short months and recovers the anchor day', () {
+      // Matches occursOn's rule: a deadline on the 31st fires on the last
+      // day of shorter months and returns to the 31st where it exists.
+      final task = Task(
+        title: 't',
+        deadline: DateTime.utc(2026, 1, 31, 9, 0),
+        recurrence: Recurrence.monthly,
+      );
+      final got = task
+          .occurrencesIn(DateTime.utc(2026, 1, 1), DateTime.utc(2026, 6, 1))
+          .toList();
+      expect(got, [
+        DateTime.utc(2026, 1, 31, 9, 0),
+        DateTime.utc(2026, 2, 28, 9, 0),
+        DateTime.utc(2026, 3, 31, 9, 0),
+        DateTime.utc(2026, 4, 30, 9, 0),
+        DateTime.utc(2026, 5, 31, 9, 0),
+      ]);
+    });
+
+    test('monthly clamp respects leap years', () {
+      final task = Task(
+        title: 't',
+        deadline: DateTime.utc(2023, 12, 31, 9, 0),
+        recurrence: Recurrence.monthly,
+      );
+      final got = task
+          .occurrencesIn(DateTime.utc(2024, 2, 1), DateTime.utc(2024, 4, 1))
+          .toList();
+      expect(got, [
+        DateTime.utc(2024, 2, 29, 9, 0), // leap February keeps day 29
+        DateTime.utc(2024, 3, 31, 9, 0),
+      ]);
+    });
+
+    test('nextOccurrenceAfter clamps monthly into a short month', () {
+      final task = Task(
+        title: 't',
+        deadline: DateTime.utc(2026, 1, 31, 9, 0),
+        recurrence: Recurrence.monthly,
+      );
+      expect(
+        task.nextOccurrenceAfter(DateTime.utc(2026, 2, 1)),
+        DateTime.utc(2026, 2, 28, 9, 0),
+      );
+      // Past the clamped February occurrence, the anchor day returns.
+      expect(
+        task.nextOccurrenceAfter(DateTime.utc(2026, 3, 1)),
+        DateTime.utc(2026, 3, 31, 9, 0),
+      );
+    });
   });
 }

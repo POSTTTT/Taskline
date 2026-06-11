@@ -26,7 +26,20 @@ class TasksNotifier extends AsyncNotifier<List<Task>> {
   @override
   Future<List<Task>> build() async {
     final repo = await ref.watch(taskRepositoryProvider.future);
-    final settings = await ref.watch(settingsProvider.future);
+    // Watch only the reminder cadence fields: cosmetic settings (theme,
+    // palette, date format, notes) must not re-read the DB or cancel and
+    // reschedule every OS notification.
+    await ref.watch(settingsProvider.selectAsync(
+      (s) => (
+        s.dueIn1Hour,
+        s.dueIn1Day,
+        s.dueIn1Week,
+        s.dueIn1Month,
+        s.dueIn1Year,
+        s.moreThan1Year,
+      ),
+    ));
+    final settings = await ref.read(settingsProvider.future);
     final tasks = await repo.getAll();
     await ref.read(notificationServiceProvider).syncAll(tasks, settings);
     return tasks;

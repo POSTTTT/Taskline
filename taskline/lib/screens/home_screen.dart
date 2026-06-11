@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -222,16 +224,25 @@ class _BlinkingCursor extends StatefulWidget {
   State<_BlinkingCursor> createState() => _BlinkingCursorState();
 }
 
-class _BlinkingCursorState extends State<_BlinkingCursor>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1100),
-  )..repeat();
+class _BlinkingCursorState extends State<_BlinkingCursor> {
+  // A repeating AnimationController would schedule a frame every vsync for
+  // the app's whole lifetime; a timer rebuilds this subtree only twice per
+  // 1.1s blink cycle, letting the app go fully idle in between.
+  late final Timer _timer;
+  bool _visible = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(
+      const Duration(milliseconds: 550),
+      (_) => setState(() => _visible = !_visible),
+    );
+  }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _timer.cancel();
     super.dispose();
   }
 
@@ -239,10 +250,9 @@ class _BlinkingCursorState extends State<_BlinkingCursor>
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(left: 6, bottom: 4),
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) => Opacity(
-          opacity: _controller.value < 0.5 ? 1 : 0,
+      child: RepaintBoundary(
+        child: Opacity(
+          opacity: _visible ? 1 : 0,
           child: Container(
             width: 12,
             height: 22,

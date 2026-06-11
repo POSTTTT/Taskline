@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/app_settings.dart';
-import '../providers/providers.dart';
 import '../providers/settings_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/nb.dart';
@@ -16,9 +15,11 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  // Persist only. tasksProvider watches the reminder-interval slice of
+  // settings, so interval changes resync notifications on their own and
+  // cosmetic changes (theme, palette, formats) skip the resync entirely.
   Future<void> _save(AppSettings next) async {
     await ref.read(settingsProvider.notifier).save(next);
-    await ref.read(tasksProvider.notifier).resyncNotifications();
   }
 
   @override

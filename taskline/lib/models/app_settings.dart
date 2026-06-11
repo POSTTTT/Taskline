@@ -113,6 +113,18 @@ class ReminderInterval {
     final enabled = json['enabled'] is bool ? json['enabled'] as bool : true;
     return ReminderInterval(enabled: enabled, count: count, unit: unit);
   }
+
+  // Value equality so providers can `select` on intervals: without it every
+  // AppSettings copy looks like a change and re-triggers notification syncs.
+  @override
+  bool operator ==(Object other) =>
+      other is ReminderInterval &&
+      other.enabled == enabled &&
+      other.count == count &&
+      other.unit == unit;
+
+  @override
+  int get hashCode => Object.hash(enabled, count, unit);
 }
 
 extension TimeFormatPrefX on TimeFormatPref {
