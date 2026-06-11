@@ -145,7 +145,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                           data: (all) {
                             final list = _filtered(all);
-                            if (list.isEmpty) return const _EmptyState();
+                            // Key on the accent colour so a palette/brightness
+                            // change gives the widget a new identity and forces
+                            // a rebuild (a keyless const instance would be
+                            // reused and keep stale colours).
+                            if (list.isEmpty) {
+                              return _EmptyState(
+                                  key: ValueKey(AppColors.primary));
+                            }
                             if (_filter == TaskFilter.upcoming) {
                               return _buildUpcoming(list);
                             }
@@ -248,7 +255,7 @@ class _BlinkingCursorState extends State<_BlinkingCursor>
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState();
+  const _EmptyState({super.key});
 
   @override
   Widget build(BuildContext context) {

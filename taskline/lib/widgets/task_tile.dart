@@ -57,6 +57,8 @@ class TaskTile extends ConsumerWidget {
     final formatted = localDeadline == null
         ? null
         : DateFormat(settings.combinedPattern).format(localDeadline);
+    final note = task.description?.trim() ?? '';
+    final showNote = settings.showNotes && note.isNotEmpty;
 
     return GestureDetector(
       onTap: onTap,
@@ -120,6 +122,18 @@ class TaskTile extends ConsumerWidget {
                       ],
                     ],
                   ),
+                  if (showNote) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      note,
+                      style: AppTextStyles.footnote.copyWith(
+                        color: task.isDone
+                            ? AppColors.onSurfaceFaint
+                            : AppColors.onSurfaceMuted,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

@@ -64,7 +64,7 @@ class TasklineApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Sync the global AppColors brightness from the saved theme mode setting.
+    // Sync the global AppColors brightness + palette from saved settings.
     final settings = ref.watch(settingsProvider).value ?? const AppSettings();
     final desired = settings.themeMode == ThemeModePref.dark
         ? Brightness.dark
@@ -75,18 +75,26 @@ class TasklineApp extends ConsumerWidget {
         appBrightness.value = desired;
       });
     }
+    final desiredPalette = paletteById(settings.palette.name);
+    if (appPalette.value != desiredPalette) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        appPalette.value = desiredPalette;
+      });
+    }
 
-    // Rebuild whenever the brightness notifier changes (the post-frame
-    // callback above and the settings update both flow through here).
-    return ValueListenableBuilder<Brightness>(
-      valueListenable: appBrightness,
-      builder: (context, _, _) {
+    // Rebuild whenever brightness or palette changes (the post-frame callbacks
+    // above and the settings update both flow through here).
+    return ListenableBuilder(
+      listenable: Listenable.merge([appBrightness, appPalette]),
+      builder: (context, _) {
         return MaterialApp(
           title: 'Taskline',
           debugShowCheckedModeBanner: false,
           navigatorKey: rootNavigatorKey,
           theme: buildAppTheme(),
-          home: const HomeScreen(),
+          // Non-const so palette/brightness changes (which rebuild MaterialApp)
+          // propagate into HomeScreen instead of being skipped as identical.
+          home: HomeScreen(),
         );
       },
     );
