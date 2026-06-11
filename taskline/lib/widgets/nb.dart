@@ -1,4 +1,4 @@
-/// Neo-brutalist widget primitives shared by all screens.
+/// Terminal-brutalist widget primitives shared by all screens.
 library;
 
 import 'package:flutter/material.dart';
@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
 /// A bordered card with a hard offset drop shadow. The signature
-/// neo-brutalist container.
+/// terminal-brutalist box-drawn container.
 class NbCard extends StatelessWidget {
   const NbCard({
     super.key,
@@ -40,8 +40,8 @@ class NbCard extends StatelessWidget {
   }
 }
 
-/// Primary action button: colored fill, thick black border, hard shadow.
-/// Press effect "depresses" the button by collapsing the shadow.
+/// Primary action button: colored fill, hairline border, gentle rounding.
+/// Accent fills (amber/teal/red) carry a soft glow; press dims the fill.
 class NbButton extends StatefulWidget {
   const NbButton({
     super.key,
@@ -77,12 +77,21 @@ class _NbButtonState extends State<NbButton> {
 
   @override
   Widget build(BuildContext context) {
-    final offset = _active ? Offset.zero : widget.shadowOffset;
-    final translate =
-        _active ? widget.shadowOffset : Offset.zero;
     final fill = widget.color ?? AppColors.primary;
     final border = widget.borderColor ?? AppColors.border;
-    final fg = widget.foregroundColor ?? AppColors.onSurface;
+    final accent = _enabled && NbStyles.isAccent(fill);
+
+    final Color bg;
+    final Color fg;
+    if (!_enabled) {
+      bg = AppColors.surfaceVariant;
+      fg = AppColors.onSurfaceFaint;
+    } else {
+      bg = _active
+          ? _darken(fill)
+          : (_hovered ? _lighten(fill) : fill);
+      fg = widget.foregroundColor ?? NbStyles.foregroundOn(fill);
+    }
 
     return MouseRegion(
       cursor: _enabled
@@ -98,25 +107,24 @@ class _NbButtonState extends State<NbButton> {
             _enabled ? () => setState(() => _pressed = false) : null,
         onTap: widget.onPressed,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 60),
+          duration: const Duration(milliseconds: 90),
           curve: Curves.easeOut,
-          transform: Matrix4.translationValues(translate.dx, translate.dy, 0),
           decoration: BoxDecoration(
-            color: _enabled
-                ? (_hovered && !_active ? _lighten(fill) : fill)
-                : Colors.grey.shade300,
+            color: bg,
             border: Border.all(
-              color: border,
+              color: accent ? bg : border,
               width: NbStyles.borderWidth,
             ),
             borderRadius: BorderRadius.circular(AppRadii.card),
-            boxShadow: [
-              BoxShadow(
-                color: NbStyles.shadowColor,
-                offset: offset,
-                blurRadius: 0,
-              ),
-            ],
+            boxShadow: accent
+                ? [
+                    BoxShadow(
+                      color: fill.withValues(alpha: _active ? 0.18 : 0.34),
+                      blurRadius: _hovered && !_active ? 18 : 12,
+                      spreadRadius: -3,
+                    ),
+                  ]
+                : const [],
           ),
           padding: widget.padding,
           alignment: widget.expand ? Alignment.center : null,
@@ -134,9 +142,12 @@ class _NbButtonState extends State<NbButton> {
 
   static Color _lighten(Color c) {
     final hsl = HSLColor.fromColor(c);
-    final lighter =
-        hsl.withLightness((hsl.lightness + 0.08).clamp(0.0, 1.0));
-    return lighter.toColor();
+    return hsl.withLightness((hsl.lightness + 0.06).clamp(0.0, 1.0)).toColor();
+  }
+
+  static Color _darken(Color c) {
+    final hsl = HSLColor.fromColor(c);
+    return hsl.withLightness((hsl.lightness - 0.06).clamp(0.0, 1.0)).toColor();
   }
 }
 
@@ -166,18 +177,18 @@ class NbCheckbox extends StatelessWidget {
           color: value ? AppColors.primary : AppColors.surface,
           border: Border.all(
               color: AppColors.border, width: NbStyles.borderWidth),
-          borderRadius: BorderRadius.circular(2),
+          borderRadius: BorderRadius.circular(AppRadii.card),
         ),
         child: value
-            ? Icon(Icons.check, size: size * 0.7, color: AppColors.border)
+            ? Icon(Icons.check, size: size * 0.7, color: AppColors.onPrimary)
             : null,
       ),
     );
   }
 }
 
-/// Chunky on/off switch. Thumb is a black square that slides between two
-/// positions; track is white when off, yellow when on.
+/// Chunky on/off switch. Thumb is a square that slides between two positions;
+/// track is the surface colour when off, phosphor green when on.
 class NbSwitch extends StatelessWidget {
   const NbSwitch({
     super.key,
@@ -205,7 +216,7 @@ class NbSwitch extends StatelessWidget {
           color: value ? AppColors.primary : AppColors.surface,
           border: Border.all(
               color: AppColors.border, width: NbStyles.borderWidth),
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(AppRadii.card),
         ),
         child: AnimatedAlign(
           duration: const Duration(milliseconds: 140),
@@ -218,8 +229,10 @@ class NbSwitch extends StatelessWidget {
               width: thumbSize,
               height: thumbSize,
               decoration: BoxDecoration(
-                color: AppColors.border,
-                borderRadius: BorderRadius.circular(2),
+                // Dark square on the amber track when on; a muted square on the
+                // surface-coloured track when off so it stays visible.
+                color: value ? AppColors.onPrimary : AppColors.onSurfaceMuted,
+                borderRadius: BorderRadius.circular(AppRadii.card),
               ),
             ),
           ),
@@ -252,7 +265,7 @@ class NbIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fill = color ?? AppColors.surface;
-    final ic = iconColor ?? AppColors.onSurface;
+    final ic = iconColor ?? NbStyles.foregroundOn(fill);
     final btn = NbButton(
       onPressed: onPressed,
       color: fill,
@@ -270,8 +283,8 @@ class NbIconButton extends StatelessWidget {
   }
 }
 
-/// Two-option segmented control. Selected option gets the yellow fill +
-/// hard shadow; unselected stays flat white with the same border.
+/// Two-option segmented control. Selected option gets the phosphor-green fill +
+/// hard shadow; unselected stays flat on the surface colour with the same border.
 class NbSegmentedControl<T> extends StatelessWidget {
   const NbSegmentedControl({
     super.key,
@@ -357,28 +370,31 @@ class NbValueRow extends StatelessWidget {
         child: Row(
           children: [
             Expanded(child: Text(label, style: AppTextStyles.body)),
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: enabled
-                    ? AppColors.primary
-                    : AppColors.surfaceVariant,
-                border: Border.all(
-                    color: AppColors.border, width: NbStyles.borderWidth),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(value,
-                      style: AppTextStyles.subhead.copyWith(
-                          fontWeight: FontWeight.w800)),
-                  const SizedBox(width: 6),
-                  const Icon(Icons.arrow_forward, size: 14),
-                ],
-              ),
-            ),
+            Builder(builder: (context) {
+              final pillFill =
+                  enabled ? AppColors.primary : AppColors.surfaceVariant;
+              final pillFg = NbStyles.foregroundOn(pillFill);
+              return Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: pillFill,
+                  border: Border.all(
+                      color: AppColors.border, width: NbStyles.borderWidth),
+                  borderRadius: BorderRadius.circular(AppRadii.pill),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(value,
+                        style: AppTextStyles.subhead
+                            .copyWith(fontWeight: FontWeight.w700, color: pillFg)),
+                    const SizedBox(width: 6),
+                    Icon(Icons.arrow_forward, size: 14, color: pillFg),
+                  ],
+                ),
+              );
+            }),
           ],
         ),
       ),

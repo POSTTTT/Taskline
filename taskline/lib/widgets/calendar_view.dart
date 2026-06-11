@@ -296,19 +296,18 @@ class _BrutalistCalendar extends StatelessWidget {
             AppTextStyles.body.copyWith(color: AppColors.onSurfaceFaint),
         todayDecoration: BoxDecoration(
           color: Colors.transparent,
-          border: Border.all(
-              color: AppColors.border, width: NbStyles.borderWidth),
-          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: AppColors.primary, width: 1.5),
+          borderRadius: BorderRadius.circular(AppRadii.card),
         ),
         todayTextStyle: AppTextStyles.body,
         selectedDecoration: BoxDecoration(
           color: AppColors.primary,
           border: Border.all(
               color: AppColors.border, width: NbStyles.borderWidth),
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(AppRadii.card),
         ),
-        selectedTextStyle:
-            AppTextStyles.body.copyWith(color: AppColors.onSurface),
+        selectedTextStyle: AppTextStyles.body.copyWith(
+            color: AppColors.onPrimary, fontWeight: FontWeight.w700),
       ),
       calendarBuilders: CalendarBuilders<Task>(
         // Replace the bottom dot with a short underline below the day
@@ -323,7 +322,7 @@ class _BrutalistCalendar extends StatelessWidget {
               child: Container(
                 width: 16,
                 height: 2.5,
-                color: AppColors.border,
+                color: AppColors.primary,
               ),
             ),
           );
@@ -440,7 +439,7 @@ class _MonthCell extends StatelessWidget {
             color: AppColors.border,
             width: isCurrent ? NbStyles.borderWidth + 1 : NbStyles.borderWidth,
           ),
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(AppRadii.card),
         ),
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Column(
@@ -448,7 +447,7 @@ class _MonthCell extends StatelessWidget {
           children: [
             Text(monthName.toUpperCase(),
                 style: AppTextStyles.subhead
-                    .copyWith(fontWeight: FontWeight.w900)),
+                    .copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
             if (taskCount > 0)
               Container(
@@ -459,12 +458,13 @@ class _MonthCell extends StatelessWidget {
                   border: Border.all(
                       color: AppColors.border,
                       width: NbStyles.borderWidth),
-                  borderRadius: BorderRadius.circular(3),
+                  borderRadius: BorderRadius.circular(AppRadii.pill),
                 ),
                 child: Text(
                   '$taskCount',
-                  style: AppTextStyles.footnote
-                      .copyWith(fontWeight: FontWeight.w900),
+                  style: AppTextStyles.footnote.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.onPrimary),
                 ),
               )
             else
@@ -496,7 +496,11 @@ class CalendarTaskTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final localDate = (occurrenceDate ?? task.deadline).toLocal();
+    // The calendar only builds this tile from concrete occurrences, so
+    // occurrenceDate is always supplied; createdAt is an unreachable fallback
+    // that keeps this non-null (deadline-less todos never reach the calendar).
+    final localDate =
+        (occurrenceDate ?? task.deadline ?? task.createdAt).toLocal();
     final countdown = formatDueIn(localDate);
     final overdue = localDate.isBefore(DateTime.now()) && !task.isDone;
 
@@ -522,38 +526,44 @@ class CalendarTaskTile extends ConsumerWidget {
                   Text(
                     task.title,
                     style: AppTextStyles.body.copyWith(
-                      fontSize: 17,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
                       color: task.isDone
                           ? AppColors.onSurfaceFaint
-                          : AppColors.onSurface,
+                          : AppColors.primary,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 6),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: task.isDone
-                          ? AppColors.surface
-                          : overdue
-                              ? AppColors.destructive
-                              : AppColors.primary,
-                      border: Border.all(
-                          color: AppColors.border,
-                          width: NbStyles.borderWidth),
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                    child: Text(
-                      task.isDone ? 'DONE' : countdown,
-                      style: AppTextStyles.footnote.copyWith(
-                        color: AppColors.onSurface,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.4,
+                  Builder(builder: (context) {
+                    final badgeFill = task.isDone
+                        ? AppColors.surface
+                        : overdue
+                            ? AppColors.destructive
+                            : AppColors.primary;
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: badgeFill,
+                        border: Border.all(
+                            color: AppColors.border,
+                            width: NbStyles.borderWidth),
+                        borderRadius: BorderRadius.circular(AppRadii.pill),
                       ),
-                    ),
-                  ),
+                      child: Text(
+                        task.isDone ? 'DONE' : countdown,
+                        style: AppTextStyles.footnote.copyWith(
+                          color: task.isDone
+                              ? AppColors.onSurfaceMuted
+                              : NbStyles.foregroundOn(badgeFill),
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                    );
+                  }),
                 ],
               ),
             ),

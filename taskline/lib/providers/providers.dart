@@ -26,7 +26,20 @@ class TasksNotifier extends AsyncNotifier<List<Task>> {
   @override
   Future<List<Task>> build() async {
     final repo = await ref.watch(taskRepositoryProvider.future);
-    final settings = await ref.watch(settingsProvider.future);
+    // Watch only the reminder cadence fields: cosmetic settings (theme,
+    // palette, date format, notes) must not re-read the DB or cancel and
+    // reschedule every OS notification.
+    await ref.watch(settingsProvider.selectAsync(
+      (s) => (
+        s.dueIn1Hour,
+        s.dueIn1Day,
+        s.dueIn1Week,
+        s.dueIn1Month,
+        s.dueIn1Year,
+        s.moreThan1Year,
+      ),
+    ));
+    final settings = await ref.read(settingsProvider.future);
     final tasks = await repo.getAll();
     await ref.read(notificationServiceProvider).syncAll(tasks, settings);
     return tasks;
@@ -36,12 +49,19 @@ class TasksNotifier extends AsyncNotifier<List<Task>> {
 
   List<Task> get _current => state.value ?? const [];
 
-  /// Pushes a new task list into state immediately, kept sorted by deadline to
-  /// match `repo.getAll()`'s ordering. This drives optimistic UI updates so a
-  /// mutation never flashes the list to a loading spinner or waits on a full
-  /// DB re-read.
+  /// Pushes a new task list into state immediately, kept in the same order as
+  /// `repo.getAll()`: dated tasks first by soonest deadline, then deadline-less
+  /// todos (newest first). This drives optimistic UI updates so a mutation
+  /// never flashes the list to a loading spinner or waits on a full DB re-read.
   void _setTasks(List<Task> tasks) {
-    tasks.sort((a, b) => a.deadline.compareTo(b.deadline));
+    tasks.sort((a, b) {
+      final da = a.deadline;
+      final db = b.deadline;
+      if (da == null && db == null) return b.createdAt.compareTo(a.createdAt);
+      if (da == null) return 1; // todos sort after dated tasks
+      if (db == null) return -1;
+      return da.compareTo(db);
+    });
     state = AsyncValue.data(tasks);
   }
 

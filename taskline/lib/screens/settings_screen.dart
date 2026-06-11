@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/app_settings.dart';
-import '../providers/providers.dart';
 import '../providers/settings_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/nb.dart';
@@ -16,9 +15,11 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  // Persist only. tasksProvider watches the reminder-interval slice of
+  // settings, so interval changes resync notifications on their own and
+  // cosmetic changes (theme, palette, formats) skip the resync entirely.
   Future<void> _save(AppSettings next) async {
     await ref.read(settingsProvider.notifier).save(next);
-    await ref.read(tasksProvider.notifier).resyncNotifications();
   }
 
   @override
@@ -118,6 +119,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             value: settings.dateFormat.label,
                             onTap: () => _chooseDateFormat(settings),
                           ),
+                          const _CellDivider(),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text('Show notes',
+                                      style: AppTextStyles.body),
+                                ),
+                                NbSwitch(
+                                  value: settings.showNotes,
+                                  onChanged: (v) => _save(
+                                      settings.copyWith(showNotes: v)),
+                                ),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -145,10 +164,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     const SizedBox(height: 24),
                     _SectionHeader('APPEARANCE'),
                     NbCard(
-                      child: NbValueRow(
-                        label: 'Theme',
-                        value: settings.themeMode.label,
-                        onTap: () => _chooseThemeMode(settings),
+                      child: Column(
+                        children: [
+                          NbValueRow(
+                            label: 'Theme',
+                            value: settings.themeMode.label,
+                            onTap: () => _chooseThemeMode(settings),
+                          ),
+                          const _CellDivider(),
+                          _PaletteRow(
+                            value: settings.palette,
+                            onTap: () => _choosePalette(settings),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -197,6 +225,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
+  Future<void> _choosePalette(AppSettings settings) async {
+    final picked = await showDialog<PalettePref>(
+      context: context,
+      builder: (ctx) => _PalettePickerDialog(current: settings.palette),
+    );
+    if (picked != null && picked != settings.palette) {
+      await _save(settings.copyWith(palette: picked));
+    }
+  }
+
   Future<T?> _showChoiceDialog<T>({
     required String title,
     required List<T> options,
@@ -237,6 +275,156 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The active-brightness colour variant for a palette, so swatches preview the
+/// colours the user will actually see right now.
+TerminalColors _variantOf(PalettePref p) {
+  final pal = paletteById(p.name);
+  return appBrightness.value == Brightness.dark ? pal.dark : pal.light;
+}
+
+class _Swatch extends StatelessWidget {
+  const _Swatch(this.color, {this.size = 16});
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: color,
+        border: Border.all(color: AppColors.border, width: NbStyles.borderWidth),
+        borderRadius: BorderRadius.circular(3),
+      ),
+    );
+  }
+}
+
+/// Settings row for the accent palette: label + a strip of preview swatches
+/// (background / primary / secondary) + the palette name.
+class _PaletteRow extends StatelessWidget {
+  const _PaletteRow({required this.value, required this.onTap});
+
+  final PalettePref value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = _variantOf(value);
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Expanded(child: Text('Palette', style: AppTextStyles.body)),
+            _Swatch(c.background),
+            const SizedBox(width: 4),
+            _Swatch(c.primary),
+            const SizedBox(width: 4),
+            _Swatch(c.secondary),
+            const SizedBox(width: 12),
+            Text(value.label.toUpperCase(),
+                style: AppTextStyles.subhead
+                    .copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(width: 6),
+            Icon(Icons.arrow_forward, size: 14, color: AppColors.onSurfaceMuted),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PalettePickerDialog extends StatelessWidget {
+  const _PalettePickerDialog({required this.current});
+
+  final PalettePref current;
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: AppColors.surface,
+      shape: RoundedRectangleBorder(
+        side: BorderSide(color: AppColors.border, width: NbStyles.borderWidth),
+        borderRadius: const BorderRadius.all(Radius.circular(AppRadii.card)),
+      ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 380),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('PALETTE', style: AppTextStyles.title),
+              const SizedBox(height: 12),
+              for (final p in PalettePref.values) ...[
+                _PaletteOption(
+                  palette: p,
+                  selected: p == current,
+                  onTap: () => Navigator.of(context).pop(p),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PaletteOption extends StatelessWidget {
+  const _PaletteOption({
+    required this.palette,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final PalettePref palette;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = _variantOf(palette);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadii.card),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: selected ? c.surfaceVariant : AppColors.surface,
+          border: Border.all(
+            color: selected ? c.primary : AppColors.border,
+            width: selected ? 2 : NbStyles.borderWidth,
+          ),
+          borderRadius: BorderRadius.circular(AppRadii.card),
+        ),
+        child: Row(
+          children: [
+            _Swatch(c.background, size: 20),
+            const SizedBox(width: 6),
+            _Swatch(c.primary, size: 20),
+            const SizedBox(width: 6),
+            _Swatch(c.secondary, size: 20),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(palette.label.toUpperCase(),
+                  style: AppTextStyles.body
+                      .copyWith(fontWeight: FontWeight.w700)),
+            ),
+            if (selected)
+              Icon(Icons.check, size: 18, color: c.primary),
+          ],
         ),
       ),
     );
@@ -453,7 +641,7 @@ class _UnitDropdown extends StatelessWidget {
         color: AppColors.surface,
         border: Border.all(
             color: AppColors.border, width: NbStyles.borderWidth),
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(AppRadii.card),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<ReminderUnit>(

@@ -29,6 +29,12 @@ class NotificationService {
 
   bool _initialized = false;
 
+  // Highest slot count handed to the plugin per task this session, so
+  // `cancel` can sweep only the slots that might be occupied instead of all
+  // 100. Startup's `syncAll` begins with `cancelAll`, which wipes anything a
+  // previous session left behind, so the map is authoritative after that.
+  final Map<int, int> _scheduledSlots = {};
+
   Future<void> init() async {
     if (_initialized) return;
 
@@ -95,7 +101,9 @@ class NotificationService {
     DateTime? now,
   }) {
     final reference = (now ?? DateTime.now()).toUtc();
-    final deadline = task.deadline.toUtc();
+    final taskDeadline = task.deadline;
+    if (taskDeadline == null) return const []; // todos use computeNudges
+    final deadline = taskDeadline.toUtc();
     if (deadline.isBefore(reference)) return const [];
 
     final buckets = <_Bucket>[
@@ -154,42 +162,111 @@ class NotificationService {
     return reminders;
   }
 
+  /// Computes the UTC nudge timestamps for a deadline-less todo. Steps forward
+  /// from the task's creation time by its [Task.recurrence] cadence (the
+  /// "remind me" interval), emitting the next [_maxRemindersPerTask] future
+  /// nudges. A todo with [Recurrence.none] is silent (returns empty).
+  List<DateTime> computeNudges(Task task, {DateTime? now}) {
+    if (task.recurrence == Recurrence.none) return const [];
+    final reference = (now ?? DateTime.now()).toUtc();
+
+    // Advance from creation to the first nudge strictly after `now`. The guard
+    // bounds the walk for very old todos with a daily cadence.
+    var cursor = task.createdAt;
+    var guard = 0;
+    while (!cursor.isAfter(reference) && guard < 100000) {
+      cursor = _advance(cursor, task.recurrence);
+      guard++;
+    }
+
+    final nudges = <DateTime>[];
+    while (nudges.length < _maxRemindersPerTask) {
+      nudges.add(cursor);
+      cursor = _advance(cursor, task.recurrence);
+    }
+    return nudges;
+  }
+
+  DateTime _advance(DateTime d, Recurrence r) {
+    switch (r) {
+      case Recurrence.none:
+        return d;
+      case Recurrence.daily:
+        return d.add(const Duration(days: 1));
+      case Recurrence.weekly:
+        return d.add(const Duration(days: 7));
+      case Recurrence.monthly:
+        return DateTime.utc(d.year, d.month + 1, d.day, d.hour, d.minute,
+            d.second, d.millisecond, d.microsecond);
+    }
+  }
+
   Future<void> schedule(
     Task task,
     AppSettings settings, {
     DateTime? now,
   }) async {
-    if (task.id == null || task.isDone) return;
+    final taskId = task.id;
+    if (taskId == null) return;
+    if (task.isDone) {
+      _scheduledSlots[taskId] = 0;
+      return;
+    }
 
-    final reminders = computeReminders(task, settings, now: now);
-    if (reminders.isEmpty) return;
+    final isTodo = task.deadline == null;
+    final reminders = isTodo
+        ? computeNudges(task, now: now)
+        : computeReminders(task, settings, now: now);
+    final slotCount =
+        reminders.length < _slotSize ? reminders.length : _slotSize;
+    _scheduledSlots[taskId] = slotCount;
+    if (slotCount == 0) return;
 
-    final baseId = task.id! * _slotSize;
+    final deadlineUtc = task.deadline?.toUtc();
+    final baseId = taskId * _slotSize;
     final tzNow = tz.TZDateTime.now(tz.local);
 
-    for (var i = 0; i < reminders.length && i < _slotSize; i++) {
+    // Issue the plugin calls together and wait once, instead of paying one
+    // platform-channel round trip per reminder.
+    final pending = <Future<void>>[];
+    for (var i = 0; i < slotCount; i++) {
       final scheduled = tz.TZDateTime.from(reminders[i], tz.local);
       if (!scheduled.isAfter(tzNow)) continue;
-      await _plugin.zonedSchedule(
+      pending.add(_plugin.zonedSchedule(
         id: baseId + i,
         title: task.title,
-        body: _reminderBody(task, reminders[i], task.deadline.toUtc()),
+        body: deadlineUtc == null
+            ? _nudgeBody(task)
+            : _reminderBody(task, reminders[i], deadlineUtc),
         scheduledDate: scheduled,
         notificationDetails: _details(),
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        payload: task.id.toString(),
-      );
+        payload: taskId.toString(),
+      ));
     }
+    await Future.wait(pending);
+  }
+
+  String _nudgeBody(Task task) {
+    final d = task.description;
+    if (d != null && d.isNotEmpty) return d;
+    return 'Still on your todo list';
   }
 
   Future<void> cancel(int taskId) async {
+    // Sweep only the slots this session actually filled; a task we've never
+    // scheduled falls back to the full block to stay safe.
+    final slots = _scheduledSlots.remove(taskId) ?? _slotSize;
     final baseId = taskId * _slotSize;
-    for (var i = 0; i < _slotSize; i++) {
-      await _plugin.cancel(id: baseId + i);
-    }
+    await Future.wait([
+      for (var i = 0; i < slots; i++) _plugin.cancel(id: baseId + i),
+    ]);
   }
 
-  Future<void> cancelAll() => _plugin.cancelAll();
+  Future<void> cancelAll() async {
+    _scheduledSlots.clear();
+    await _plugin.cancelAll();
+  }
 
   Future<void> syncAll(
     Iterable<Task> tasks,
@@ -198,9 +275,9 @@ class NotificationService {
   }) async {
     await cancelAll();
     final ref = now ?? DateTime.now();
-    for (final task in tasks) {
-      await schedule(task, settings, now: ref);
-    }
+    await Future.wait([
+      for (final task in tasks) schedule(task, settings, now: ref),
+    ]);
   }
 
   String _reminderBody(Task task, DateTime fireAt, DateTime deadline) {

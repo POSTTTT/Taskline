@@ -27,6 +27,9 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
   late DateTime _deadline;
   late Recurrence _recurrence;
   DateTime? _recurrenceEndDate;
+  // When false this is a deadline-less "todo": no due date, and [_recurrence]
+  // acts as an optional "remind me" nudge cadence instead of a repeat rule.
+  late bool _hasDeadline;
   bool _saving = false;
 
   bool get _isEditing => widget.task != null;
@@ -38,9 +41,12 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
     _titleController = TextEditingController(text: existing?.title ?? '');
     _descriptionController =
         TextEditingController(text: existing?.description ?? '');
-    _deadline = existing?.deadline.toLocal() ?? DateTime.now();
+    _deadline = existing?.deadline?.toLocal() ?? DateTime.now();
     _recurrence = existing?.recurrence ?? Recurrence.none;
     _recurrenceEndDate = existing?.recurrenceEndDate?.toLocal();
+    // New tasks default to scheduled; an existing todo (null deadline) opens
+    // in todo mode.
+    _hasDeadline = existing == null ? true : existing.deadline != null;
   }
 
   Future<void> _pickRecurrenceEndDate() async {
@@ -82,8 +88,8 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
     });
   }
 
-  /// Re-skins the stock Material date picker so it matches the neo-brutalist
-  /// theme — yellow selection chip, black text, bold weights, sharp corners.
+  /// Re-skins the stock Material date picker so it matches the terminal
+  /// theme — green selection chip, near-black text, bold weights, sharp corners.
   Widget _brutalistPickerTheme(BuildContext context, Widget? child) {
     final base = Theme.of(context);
     final dark = appBrightness.value == Brightness.dark;
@@ -92,11 +98,11 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
         colorScheme: ColorScheme(
           brightness: dark ? Brightness.dark : Brightness.light,
           primary: AppColors.primary,
-          onPrimary: const Color(0xFF000000),
+          onPrimary: AppColors.onPrimary,
           surface: AppColors.surface,
           onSurface: AppColors.onSurface,
           secondary: AppColors.primary,
-          onSecondary: const Color(0xFF000000),
+          onSecondary: AppColors.onPrimary,
           error: AppColors.destructive,
           onError: AppColors.onSurface,
         ),
@@ -112,11 +118,11 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
         datePickerTheme: DatePickerThemeData(
           backgroundColor: AppColors.surface,
           headerBackgroundColor: AppColors.primary,
-          headerForegroundColor: const Color(0xFF000000),
+          headerForegroundColor: AppColors.onPrimary,
           headerHeadlineStyle: AppTextStyles.title,
           headerHelpStyle: AppTextStyles.sectionHeader,
           weekdayStyle: AppTextStyles.footnote
-              .copyWith(fontWeight: FontWeight.w800),
+              .copyWith(fontWeight: FontWeight.w700),
           dayStyle: AppTextStyles.body,
           dayForegroundColor: WidgetStatePropertyAll(AppColors.onSurface),
           dayBackgroundColor: const WidgetStatePropertyAll(Colors.transparent),
@@ -133,7 +139,7 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
           ),
           dayShape: const WidgetStatePropertyAll(
             RoundedRectangleBorder(
-              borderRadius: BorderRadius.all(Radius.circular(4)),
+              borderRadius: BorderRadius.all(Radius.circular(AppRadii.card)),
             ),
           ),
           dividerColor: AppColors.border,
@@ -251,7 +257,7 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
     if (picked != null) setState(() => _deadline = picked);
   }
 
-  Future<void> _pickRecurrence() async {
+  Future<void> _pickRecurrence({String title = 'REPEAT'}) async {
     final picked = await showDialog<Recurrence>(
       context: context,
       builder: (ctx) => Dialog(
@@ -270,7 +276,7 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('REPEAT', style: AppTextStyles.title),
+                Text(title, style: AppTextStyles.title),
                 const SizedBox(height: 12),
                 for (final r in Recurrence.values) ...[
                   NbButton(
@@ -311,24 +317,30 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
 
     final notifier = ref.read(tasksProvider.notifier);
     final description = _descriptionController.text.trim();
+    final title = _titleController.text.trim();
 
-    final effectiveEnd =
-        _recurrence == Recurrence.none ? null : _recurrenceEndDate;
+    // Scheduled: keep the deadline + repeat rule. Todo: no deadline, and
+    // [_recurrence] is the "remind me" nudge cadence (no repeat-until).
+    final DateTime? deadline = _hasDeadline ? _deadline : null;
+    final DateTime? effectiveEnd =
+        (_hasDeadline && _recurrence != Recurrence.none)
+            ? _recurrenceEndDate
+            : null;
 
     if (_isEditing) {
       final updated = widget.task!.copyWith(
-        title: _titleController.text.trim(),
+        title: title,
         description: description.isEmpty ? null : description,
-        deadline: _deadline,
+        deadline: deadline,
         recurrence: _recurrence,
         recurrenceEndDate: effectiveEnd,
       );
       await notifier.edit(updated);
     } else {
       await notifier.add(Task(
-        title: _titleController.text.trim(),
+        title: title,
         description: description.isEmpty ? null : description,
-        deadline: _deadline,
+        deadline: deadline,
         recurrence: _recurrence,
         recurrenceEndDate: effectiveEnd,
       ));
@@ -405,94 +417,124 @@ class _TaskEditScreenState extends ConsumerState<TaskEditScreen> {
                             hintText: 'Optional notes'),
                       ),
                       const SizedBox(height: 16),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.start,
-                              children: [
-                                _Label('DUE DATE'),
-                                const SizedBox(height: 6),
-                                NbButton(
-                                  onPressed: _pickDate,
-                                  color: AppColors.surface,
-                                  expand: true,
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 14),
-                                  child: Text(
-                                      dateFormat.format(_deadline)),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.start,
-                              children: [
-                                _Label('TIME'),
-                                const SizedBox(height: 6),
-                                NbButton(
-                                  onPressed: _pickTime,
-                                  color: AppColors.surface,
-                                  expand: true,
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 14),
-                                  child: Text(
-                                      timeFormat.format(_deadline)),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                      _Label('TYPE'),
+                      const SizedBox(height: 6),
+                      NbSegmentedControl<bool>(
+                        value: _hasDeadline,
+                        options: const [true, false],
+                        labelOf: (v) => v ? 'SCHEDULED' : 'TODO',
+                        onChanged: (v) => setState(() => _hasDeadline = v),
                       ),
                       const SizedBox(height: 16),
-                      _Label('REPEAT'),
-                      const SizedBox(height: 6),
-                      NbButton(
-                        onPressed: _pickRecurrence,
-                        color: AppColors.surface,
-                        expand: true,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        child: Text(
-                            _recurrenceLabel(_recurrence).toUpperCase()),
-                      ),
-                      if (_recurrence != Recurrence.none) ...[
-                        const SizedBox(height: 16),
-                        _Label('REPEAT UNTIL'),
-                        const SizedBox(height: 6),
+                      if (_hasDeadline) ...[
                         Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Expanded(
-                              child: NbButton(
-                                onPressed: _pickRecurrenceEndDate,
-                                color: AppColors.surface,
-                                expand: true,
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 14),
-                                child: Text(
-                                  _recurrenceEndDate == null
-                                      ? 'NO END DATE'
-                                      : dateFormat
-                                          .format(_recurrenceEndDate!)
-                                          .toUpperCase(),
-                                ),
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  _Label('DUE DATE'),
+                                  const SizedBox(height: 6),
+                                  NbButton(
+                                    onPressed: _pickDate,
+                                    color: AppColors.surface,
+                                    expand: true,
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 14),
+                                    child: Text(
+                                        dateFormat.format(_deadline)),
+                                  ),
+                                ],
                               ),
                             ),
-                            if (_recurrenceEndDate != null) ...[
-                              const SizedBox(width: 12),
-                              NbIconButton(
-                                icon: Icons.close,
-                                size: 48,
-                                color: AppColors.surface,
-                                onPressed: _clearRecurrenceEndDate,
-                                tooltip: 'Clear end date',
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  _Label('TIME'),
+                                  const SizedBox(height: 6),
+                                  NbButton(
+                                    onPressed: _pickTime,
+                                    color: AppColors.surface,
+                                    expand: true,
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 14),
+                                    child: Text(
+                                        timeFormat.format(_deadline)),
+                                  ),
+                                ],
                               ),
-                            ],
+                            ),
                           ],
+                        ),
+                        const SizedBox(height: 16),
+                        _Label('REPEAT'),
+                        const SizedBox(height: 6),
+                        NbButton(
+                          onPressed: _pickRecurrence,
+                          color: AppColors.surface,
+                          expand: true,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          child: Text(
+                              _recurrenceLabel(_recurrence).toUpperCase()),
+                        ),
+                        if (_recurrence != Recurrence.none) ...[
+                          const SizedBox(height: 16),
+                          _Label('REPEAT UNTIL'),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: NbButton(
+                                  onPressed: _pickRecurrenceEndDate,
+                                  color: AppColors.surface,
+                                  expand: true,
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 14),
+                                  child: Text(
+                                    _recurrenceEndDate == null
+                                        ? 'NO END DATE'
+                                        : dateFormat
+                                            .format(_recurrenceEndDate!)
+                                            .toUpperCase(),
+                                  ),
+                                ),
+                              ),
+                              if (_recurrenceEndDate != null) ...[
+                                const SizedBox(width: 12),
+                                NbIconButton(
+                                  icon: Icons.close,
+                                  size: 48,
+                                  color: AppColors.surface,
+                                  onPressed: _clearRecurrenceEndDate,
+                                  tooltip: 'Clear end date',
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
+                      ] else ...[
+                        _Label('REMIND ME'),
+                        const SizedBox(height: 6),
+                        NbButton(
+                          onPressed: () =>
+                              _pickRecurrence(title: 'REMIND ME'),
+                          color: AppColors.surface,
+                          expand: true,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          child: Text(
+                              _recurrenceLabel(_recurrence).toUpperCase()),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          _recurrence == Recurrence.none
+                              ? '// no deadline — sits on your todo list with no reminders'
+                              : '// no deadline — nudges you ${_recurrenceLabel(_recurrence).toLowerCase()} until done',
+                          style: AppTextStyles.footnote,
                         ),
                       ],
                     ],
